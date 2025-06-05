@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配信待機中...</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- M PLUS Rounded 1c フォントを読み込み -->
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700&display=swap" rel="stylesheet">
+    <!-- 源ノ角ゴシック JP Light (Noto Sans JP Light) フォントを読み込み -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300&display=swap" rel="stylesheet">
+    <style>
+        /* Overall style settings */
+        body {
+            margin: 0;
+            overflow: hidden; /* Hide scrollbars */
+            height: 100vh; /* Match viewport height */
+            position: relative;
+            font-family: 'M PLUS Rounded 1c', sans-serif; /* Default font settings */
+            color: #ffffff; /* Default text color */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center; /* Ensures content block is centered within body */
+        }
+
+        /* Background gradient animation */
+        .background-gradient {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Background gradient is controlled by JavaScript, so CSS transition is not needed */
+            background: linear-gradient(to bottom, #000000, #0a0a20); /* Initial background like deep night */
+            z-index: -1;
+        }
+
+        /* Container for sun and moon */
+        .celestial-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Sun style */
+        .sun {
+            position: absolute;
+            width: 100px; /* Make sun and moon roughly the same size */
+            height: 100px;
+            background: radial-gradient(circle, #FFD700, #FFA500); /* Sun's gradient */
+            border-radius: 50%;
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.8);
+            /* Position and opacity are controlled by JavaScript, so CSS transition is not needed */
+        }
+
+        /* Moon style */
+        .moon {
+            position: absolute;
+            width: 100px; /* Make sun and moon roughly the same size */
+            height: 100px;
+            background: radial-gradient(circle, #F0F8FF, #B0C4DE); /* Moon's gradient */
+            border-radius: 50%;
+            /* Adjusted box-shadow to give a glowing effect, similar to the sun */
+            box-shadow: 0 0 40px rgba(240, 248, 255, 0.7), 0 0 60px rgba(176, 196, 222, 0.5);
+            filter: grayscale(0.2); /* Apply slight grayscale to moon */
+            /* Position and opacity are controlled by JavaScript, so CSS transition is not needed */
+        }
+
+        /* Star container */
+        .star-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Disable click events */
+            overflow: hidden; /* Hide stars overflowing the container */
+            opacity: 0; /* Hidden initially */
+            transition: opacity 2s ease-in-out; /* Fade in/out */
+        }
+
+        /* Twinkling star style */
+        .star {
+            position: absolute;
+            background: #ffffff; /* Star color */
+            border-radius: 50%; /* Make circular */
+            opacity: 0; /* Transparent initially */
+            animation: twinkle 4s infinite ease-in-out; /* Twinkle animation */
+        }
+
+        /* Shooting star style */
+        .shooting-star {
+            position: absolute;
+            background: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0)); /* Shooting star gradient */
+            width: 5px; /* Shooting star width */
+            height: 2px; /* Shooting star height */
+            opacity: 0; /* Transparent initially */
+            transform: rotate(45deg); /* Display diagonally */
+            animation: shoot 8s infinite linear; /* Shooting star animation */
+        }
+
+        /* Content area style */
+        .content {
+            z-index: 10; /* Display above stars */
+            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+            padding: 40px 60px;
+            border-radius: 20px; /* Rounded corners */
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.3); /* Shadow */
+            animation: fadeIn 2s forwards; /* Fade-in animation */
+            text-align: center; /* Explicitly ensure text is centered within the content block */
+            /* Added for vertical centering of content inside this block */
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Vertically center content */
+            align-items: center; /* Horizontally center content (already handled by text-align, but good for flexbox) */
+        }
+
+        h1 {
+            font-size: 3.5em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.8); /* Text shadow */
+        }
+
+        p {
+            font-size: 1.8em;
+            margin-top: 0;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.6); /* Text shadow */
+        }
+
+        /* Style for the waiting message */
+        .waiting-message {
+            font-family: 'Noto Sans JP Light', '源ノ角ゴシック JP Light', sans-serif;
+        }
+
+        /* Keyframes for twinkle animation */
+        @keyframes twinkle {
+            0%, 100% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1); }
+        }
+
+        /* Keyframes for shooting star animation */
+        @keyframes shoot {
+            0% {
+                transform: translate(-100vw, -100vh) rotate(45deg); /* Start from top-left */
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            20% {
+                transform: translate(100vw, 100vh) rotate(45deg); /* Move to bottom-right */
+                opacity: 0;
+            }
+            100% {
+                opacity: 0; /* Transparent for the rest of the time */
+            }
+        }
+
+        /* Keyframes for fade-in animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Media queries for responsive design */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5em;
+            }
+            p {
+                font-size: 1.2em;
+            }
+            .content {
+                padding: 30px 40px;
+            }
+            .sun, .moon {
+                width: 80px;
+                height: 80px;
+            }
+        }
+
+        /* Weather styles */
+        .cloud-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5; /* Between background and content */
+            opacity: 0; /* Hidden by default */
+            pointer-events: none;
+            overflow: hidden; /* Clouds will be clipped by this container */
+            transition: opacity 2s ease-in-out; /* Add smooth transition for opacity (changed from 1s to 2s) */
+        }
+
+        /* Dynamic cloud style (container for cloud parts) */
+        .cloud {
+            position: absolute; /* Allows positioning of the cloud container */
+            background: transparent; /* Main cloud container is transparent */
+            animation: cloud-drift linear infinite;
+            opacity: 0.9; /* Base opacity for the whole cloud */
+            pointer-events: none; /* Make sure clouds don't block clicks */
+            /* Removed overflow: hidden from here to allow cloud-parts to extend */
+        }
+
+        /* Individual cloud parts for more organic shape */
+        .cloud-part {
+            position: absolute;
+            background: #f7f7f7; /* Soft off-white for cloud parts */
+            border-radius: 50%; /* Always round */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Subtle shadow for soft edges */
+            opacity: 0.95; /* Slightly less transparent for better overlap effect */
+        }
+
+        /* Adjust cloud-drift to cover more ground and look more natural */
+        @keyframes cloud-drift {
+            0% { transform: translateX(-100vw); } /* Start far left (off-screen) */
+            100% { transform: translateX(200vw); } /* End far right (off-screen, ensures full travel across view) */
+        }
+
+        .rain-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 6; /* Above clouds */
+            opacity: 0; /* Hidden by default */
+            pointer-events: none;
+            overflow: hidden; /* Raindrops stay within the container */
+            transition: opacity 2s ease-in-out; /* Add smooth transition for opacity (changed from 1s to 2s) */
+        }
+
+        /* New styles for individual raindrops */
+        .raindrop {
+            position: absolute;
+            background: rgba(170, 200, 255, 0.6); /* 薄い青色の雨粒 */
+            width: 2px;
+            animation: raindrop-fall linear infinite;
+            opacity: 0; /* 初期は非表示 */
+        }
+
+        @keyframes raindrop-fall {
+            0% {
+                transform: translateY(-10vh) translateX(0); /* 画面上から開始 */
+                opacity: 0;
+            }
+            10% {
+                opacity: 1; /* 降下開始時にフェードイン */
+            }
+            90% {
+                opacity: 1; /* ほとんどの期間表示 */
+            }
+            100% {
+                transform: translateY(110vh) translateX(0); /* 画面下まで落下 */
+                opacity: 0; /* 画面外でフェードアウト */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-gradient" id="background-gradient"></div>
+    <div class="celestial-container">
+        <div class="sun" id="sun"></div>
+        <div class="moon" id="moon"></div>
+    </div>
+    <div class="star-container" id="star-container"></div>
+
+    <!-- Weather containers -->
+    <div class="cloud-container" id="cloud-container"></div>
+    <div class="rain-container" id="rain-container"></div>
+
+    <div class="content">
+        <p class="waiting-message">しばらくお待ち下さい……</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const background = document.getElementById('background-gradient');
+            const sun = document.getElementById('sun');
+            const moon = document.getElementById('moon');
+            const starContainer = document.getElementById('star-container');
+            const cloudContainer = document.getElementById('cloud-container');
+            const rainContainer = document.getElementById('rain-container');
+
+            const numStars = 150; // Number of stars to generate
+            const numShootingStars = 5; // Number of shooting stars to generate
+            const numRaindrops = 200; // 生成する雨粒の数
+            const numClouds = 20; // 生成する雲の数 (大きな雲の数)
+
+            // Function to create twinkling stars
+            function createStar() {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 3 + 1; // Star size (1px to 4px)
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.left = `${Math.random() * 100}%`; // Random X position
+                star.style.top = `${Math.random() * 100}%`; // Random Y position
+                star.style.animationDelay = `${Math.random() * 4}s`; // Stagger animation start
+                starContainer.appendChild(star);
+            }
+
+            // Function to create shooting stars
+            function createShootingStar() {
+                const shootingStar = document.createElement('div');
+                shootingStar.className = 'shooting-star';
+                // Adjust position to appear from anywhere on the screen
+                shootingStar.style.left = `${Math.random() * 100}%`;
+                shootingStar.style.top = `${Math.random() * 100}%`;
+                // Stagger animation start
+                shootingStar.style.animationDelay = `${Math.random() * 8}s`;
+                // Randomize shooting star speed
+                shootingStar.style.animationDuration = `${Math.random() * 5 + 5}s`; // 5s to 10s
+                starContainer.appendChild(shootingStar);
+            }
+
+            // Function to create individual raindrops
+            function createRaindrop() {
+                const raindrop = document.createElement('div');
+                raindrop.className = 'raindrop';
+                const size = Math.random() * 2 + 1; // 雨粒の幅 (1px to 3px)
+                const height = Math.random() * 10 + 5; // 雨粒の高さ (5px to 15px)
+                raindrop.style.width = `${size}px`;
+                raindrop.style.height = `${height}px`;
+                raindrop.style.left = `${Math.random() * 100}%`; // ランダムなX位置
+                raindrop.style.animationDuration = `${Math.random() * 0.8 + 0.4}s`; // 落下速度 (0.4s to 1.2s)
+                raindrop.style.animationDelay = `${Math.random() * 3}s`; // アニメーションの開始遅延
+                rainContainer.appendChild(raindrop);
+            }
+
+            // Function to create individual clouds with multiple parts for organic shape
+            function createCloud() {
+                const cloud = document.createElement('div');
+                cloud.className = 'cloud';
+
+                // Main cloud container's position and animation properties
+                const baseWidth = Math.random() * 300 + 150; // 雲の基底幅 (150px to 450px)
+                const baseHeight = baseWidth * (Math.random() * 0.3 + 0.4); // 雲の基底高さ (幅の0.4倍から0.7倍)
+                const top = Math.random() * 25; // 雲のY位置 (画面上部から25%まで)
+                const duration = Math.random() * 70 + 60; // アニメーション速度 (60s to 130s)
+                // 各雲が読み込み直後から流れているように、アニメーション開始をランダムな負の値に設定
+                const delay = -(Math.random() * duration);
+
+                cloud.style.width = `${baseWidth}px`;
+                cloud.style.height = `${baseHeight}px`;
+                cloud.style.top = `${top}%`;
+                cloud.style.animationDuration = `${duration}s`;
+                cloud.style.animationDelay = `${delay}s`;
+                // CSSアニメーションのtranslateXに任せるため、cloud.style.leftの初期設定は不要
+                // cloud.style.left = `-${baseWidth}px`; 
+
+                // Create multiple cloud parts for an organic shape
+                const numCloudParts = Math.floor(Math.random() * 7) + 5; // 各雲に5～11個のパーツ
+                for (let i = 0; i < numCloudParts; i++) {
+                    const cloudPart = document.createElement('div');
+                    cloudPart.className = 'cloud-part';
+
+                    const partSize = Math.random() * baseWidth * 0.8 + baseWidth * 0.2; // 親の幅の20%～100%のサイズ
+                    const partHeightFactor = Math.random() * 0.5 + 0.7; // 高さの幅に対する比率 (0.7から1.2)
+                    const partHeight = partSize * partHeightFactor;
+
+                    // Allow parts to extend slightly outside the main cloud bounds for a more irregular shape
+                    const partLeft = Math.random() * (baseWidth * 1.2) - (baseWidth * 0.1); // -10% to 110% of baseWidth
+                    const partTop = Math.random() * (baseHeight * 1.2) - (baseHeight * 0.1); // -10% to 110% of baseHeight
+                    const partOpacity = Math.random() * 0.3 + 0.7; // 0.7から1.0の不透明度
+
+                    cloudPart.style.width = `${partSize}px`;
+                    cloudPart.style.height = `${partHeight}px`;
+                    cloudPart.style.left = `${partLeft}px`;
+                    cloudPart.style.top = `${partTop}px`;
+                    cloudPart.style.opacity = `${partOpacity}`;
+
+                    cloud.appendChild(cloudPart);
+                }
+
+                cloudContainer.appendChild(cloud);
+            }
+
+
+            // Generate specified number of stars and shooting stars
+            for (let i = 0; i < numStars; i++) {
+                createStar();
+            }
+            for (let i = 0; i < numShootingStars; i++) {
+                createShootingStar();
+            }
+            // Generate raindrops
+            for (let i = 0; i < numRaindrops; i++) {
+                createRaindrop();
+            }
+            // Generate clouds
+            for (let i = 0; i < numClouds; i++) {
+                createCloud();
+            }
+
+
+            // Helper function: Parse RGB components from a gradient string
+            function parseGradientColors(gradientString) {
+                const cleanString = gradientString.replace(/linear-gradient\(to bottom,\s*|\)/g, '');
+                const colorParts = cleanString.split(', ').map(part => part.trim());
+
+                const hexToRgb = (hex) => {
+                    const r = parseInt(hex.substring(1, 3), 16);
+                    const g = parseInt(hex.substring(3, 5), 16);
+                    const b = parseInt(hex.substring(5, 7), 16);
+                    return [r, g, b];
+                };
+
+                const rgbToRgb = (rgbString) => {
+                    const match = rgbString.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+                    return match ? [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])] : [0, 0, 0];
+                };
+
+                const colors = colorParts.map(colorPart => {
+                    if (colorPart.startsWith('#')) {
+                        return hexToRgb(colorPart);
+                    } else if (colorPart.startsWith('rgb')) {
+                        return rgbToRgb(colorPart);
+                    }
+                    return [0, 0, 0]; // Default
+                });
+
+                return { start: colors[0], end: colors[1] };
+            }
+
+            // Helper function: Interpolate between two RGB colors
+            function interpolateRgb(color1, color2, progress) {
+                const r = Math.round(color1[0] + (color2[0] - color1[0]) * progress);
+                const g = Math.round(color1[1] + (color2[1] - color1[1]) * progress);
+                const b = Math.round(color1[2] + (color2[2] - color1[2]) * progress);
+                return `rgb(${r}, ${g}, ${b})`;
+            }
+
+            // Define the common arc path for celestial bodies
+            // t: progress along the arc, 0 to 1 (0=left horizon, 0.5=zenith, 1=right horizon)
+            // y_zenith: lowest Y value (highest point on screen)
+            // y_horizon: highest Y value (lowest point on screen, near horizon)
+            const getArcPosition = (t, y_zenith = 5, y_horizon = 30) => {
+                const x = -20 + (140 * t); // x from -20% to 120%
+                // Using a sine wave for y to create an arc
+                // t=0 -> y=y_horizon (start at horizon)
+                // t=0.5 -> y=y_zenith (peak)
+                // t=1 -> y=y_horizon (end at horizon)
+                const y = y_horizon + (y_zenith - y_horizon) * Math.sin(t * Math.PI);
+                return { x, y };
+            };
+
+            // Define background color keyframes for the entire cycle
+            // These points define the color of the sky at specific globalProgress values (0 to 1)
+            const bgKeyframes = [
+                { progress: 0.0, colors: parseGradientColors("linear-gradient(to bottom, #000000, #0a0a20)") }, // Midnight (start)
+                { progress: 0.1, colors: parseGradientColors("linear-gradient(to bottom, #FFB6C1, #87CEEB)") }, // Dawn (transition towards morning)
+                { progress: 0.25, colors: parseGradientColors("linear-gradient(to bottom, #7A9CAE, #5C7A8D)") }, // Morning (薄暗く調整)
+                { progress: 0.4, colors: parseGradientColors("linear-gradient(to bottom, #8FB2C2, #6F8D9D)") }, // Day (薄暗く調整)
+                { progress: 0.55, colors: parseGradientColors("linear-gradient(to bottom, #9E6D50, #7E5D40)") }, // Dusk (薄暗く調整)
+                { progress: 0.7, colors: parseGradientColors("linear-gradient(to bottom, #0a0a20, #000000)") }, // Night
+                { progress: 1.0, colors: parseGradientColors("linear-gradient(to bottom, #000000, #0a0a20)") }  // Cycle end (same as Midnight for seamless loop)
+            ];
+
+            const totalCycleDuration = 60000; // Total duration of the entire day-night cycle in milliseconds (60 seconds)
+            let startTime = null;
+
+            // New variables for smooth weather transitions
+            let weatherTransitionStartTime = 0;
+            let weatherTransitionDuration = 2000; // 2秒に変更
+            let weatherState = 'clear'; // 'clear', 'cloudy', 'rainy' // 天気の状態を追跡する
+            let targetCloudOpacity = 0;
+            let targetRainOpacity = 0;
+
+            let initialCloudOpacity = 0; // Initialize in outer scope
+            let initialRainOpacity = 0;   // Initialize in outer scope
+
+            let nextWeatherDecisionTime = 5000; // 最初の決定は5秒後
+            const weatherDecisionInterval = 15000; // 15秒ごとに天気を変更
+
+            // 天気をランダムに選択する関数を復活
+            const chooseNewWeather = () => {
+                const rand = Math.random();
+                if (rand < 0.6) { // 60% chance to be clear
+                    return 'clear';
+                } else if (rand < 0.9) { // 30% chance for cloudy
+                    return 'cloudy';
+                } else { // 10% chance for rainy
+                    return 'rainy';
+                }
+            };
+
+            // Main animation loop
+            const animateCycle = (currentTime) => {
+                if (!startTime) startTime = currentTime;
+                const elapsedTime = currentTime - startTime;
+                const globalProgress = (elapsedTime % totalCycleDuration) / totalCycleDuration; // 0 to 1, loops continuously
+
+                // --- Sun and Moon Position and Opacity ---
+                // Sun's active period: roughly from globalProgress 0.9 to 0.4 (wraps around for dawn)
+                // Moon's active period: roughly from globalProgress 0.4 to 0.9
+                const sunArcStartGlobal = 0.9; // Sun starts its arc at this global progress (just before midnight cycle end)
+                const sunArcEndGlobal = 0.4;   // Sun ends its arc at this global progress (mid-day)
+                const moonArcStartGlobal = 0.4; // Moon starts its arc at this global progress (mid-day)
+                const moonArcEndGlobal = 0.9;   // Moon ends its arc at this global progress (mid-night)
+
+                // Calculate Sun's position and opacity
+                let sunArcProgress = 0; // Progress along the sun's arc (0 to 1)
+                let sunOpacity = 0;
+                // Check if globalProgress is within the sun's active arc (considering wrap-around)
+                if (globalProgress >= sunArcStartGlobal || globalProgress < sunArcEndGlobal) {
+                    if (globalProgress >= sunArcStartGlobal) { // From sunArcStartGlobal to 1.0
+                        sunArcProgress = (globalProgress - sunArcStartGlobal) / (1.0 - sunArcStartGlobal + sunArcEndGlobal);
+                    } else { // From 0.0 to sunArcEndGlobal
+                        sunArcProgress = (globalProgress + (1.0 - sunArcStartGlobal)) / (1.0 - sunArcStartGlobal + sunArcEndGlobal);
+                    }
+                    
+                    const fadeDurationRatio = 0.2; // How much of its arc to spend fading in/out
+                    if (sunArcProgress < fadeDurationRatio) {
+                        sunOpacity = sunArcProgress / fadeDurationRatio; // Fade in
+                    } else if (sunArcProgress > (1 - fadeDurationRatio)) {
+                        sunOpacity = (1 - sunArcProgress) / fadeDurationRatio; // Fade out
+                    } else {
+                        sunOpacity = 1; // Fully visible
+                    }
+                }
+                const sunPos = getArcPosition(sunArcProgress);
+                sun.style.left = `${sunPos.x}%`;
+                sun.style.top = `${sunPos.y}%`;
+                sun.style.opacity = Math.max(0, Math.min(1, sunOpacity)); // Clamp opacity
+
+                // Calculate Moon's position and opacity
+                let moonArcProgress = 0; // Progress along the moon's arc (0 to 1)
+                let moonOpacity = 0;
+                // Check if globalProgress is within the moon's active arc
+                if (globalProgress >= moonArcStartGlobal && globalProgress < moonArcEndGlobal) {
+                    moonArcProgress = (globalProgress - moonArcStartGlobal) / (moonArcEndGlobal - moonArcStartGlobal);
+                    
+                    const fadeDurationRatio = 0.2; // How much of its arc to spend fading in/out
+                    if (moonArcProgress < fadeDurationRatio) {
+                        moonOpacity = moonArcProgress / fadeDurationRatio; // Fade in
+                    } else if (moonArcProgress > (1 - fadeDurationRatio)) {
+                        moonOpacity = (1 - moonArcProgress) / fadeDurationRatio; // Fade out
+                    } else {
+                        moonOpacity = 1; // Fully visible
+                    }
+                }
+                const moonPos = getArcPosition(moonArcProgress);
+                moon.style.left = `${moonPos.x}%`;
+                moon.style.top = `${moonPos.y}%`;
+                moon.style.opacity = Math.max(0, Math.min(1, moonOpacity)); // Clamp opacity
+
+
+                // --- Stars Opacity ---
+                // Stars are most visible during midnight/night, fading out during dawn/dusk
+                let currentStarsBaseOpacity;
+                const starFadeInStart = 0.5; // Starts fading in at dusk
+                const starFullVisibleStart = 0.6; // Fully visible shortly after dusk
+                const starFullVisibleEnd = 0.8; // Stays fully visible until late night
+                const starFadeOutEnd = 0.9; // Fully faded out by dawn
+
+                if (globalProgress >= starFadeInStart && globalProgress < starFadeOutEnd) {
+                    if (globalProgress < starFullVisibleStart) { // Fade in phase
+                        currentStarsBaseOpacity = (globalProgress - starFadeInStart) / (starFullVisibleStart - starFadeInStart);
+                    } else if (globalProgress < starFullVisibleEnd) { // Fully visible phase
+                        currentStarsBaseOpacity = 1;
+                    } else { // Fade out phase
+                        currentStarsBaseOpacity = 1 - (globalProgress - starFullVisibleEnd) / (starFadeOutEnd - starFullVisibleEnd);
+                    }
+                } else {
+                    currentStarsBaseOpacity = 0; // Hidden
+                }
+
+
+                // --- Background Gradient ---
+                let currentBgKeyframe = 0;
+                for (let i = 0; i < bgKeyframes.length - 1; i++) {
+                    if (globalProgress >= bgKeyframes[i].progress && globalProgress <= bgKeyframes[i + 1].progress) {
+                        currentBgKeyframe = i;
+                        break;
+                    }
+                    // Handle wrap-around from last keyframe to first (e.g., globalProgress = 0.95, next is 0.0)
+                    if (i === bgKeyframes.length - 2 && globalProgress > bgKeyframes[i + 1].progress) {
+                        currentBgKeyframe = i + 1;
+                    }
+                }
+
+                const startBgKey = bgKeyframes[currentBgKeyframe];
+                const endBgKey = bgKeyframes[(currentBgKeyframe + 1) % bgKeyframes.length];
+
+                let bgProgressInSegment;
+                if (endBgKey.progress < startBgKey.progress) { // Wrap-around case (e.g., from 0.9 to 0.0)
+                    bgProgressInSegment = (globalProgress - startBgKey.progress + 1) % 1 / (1 - startBgKey.progress + endBgKey.progress);
+                } else {
+                    bgProgressInSegment = (globalProgress - startBgKey.progress) / (endBgKey.progress - startBgKey.progress);
+                }
+                bgProgressInSegment = Math.max(0, Math.min(1, bgProgressInSegment)); // Clamp between 0 and 1
+
+                const interpolatedStartColor = interpolateRgb(startBgKey.colors.start, endBgKey.colors.start, bgProgressInSegment);
+                const interpolatedEndColor = interpolateRgb(startBgKey.colors.end, endBgKey.colors.end, bgProgressInSegment);
+                background.style.backgroundImage = `linear-gradient(to bottom, ${interpolatedStartColor}, ${interpolatedEndColor})`;
+
+
+                // --- Weather decision logic ---
+                if (currentTime >= nextWeatherDecisionTime) {
+                    nextWeatherDecisionTime += weatherDecisionInterval;
+                    const newWeather = chooseNewWeather();
+
+                    if (newWeather !== weatherState) {
+                        weatherState = newWeather;
+                        weatherTransitionStartTime = currentTime; // Record time of weather change
+                        initialCloudOpacity = parseFloat(cloudContainer.style.opacity || 0); // Capture current opacity
+                        initialRainOpacity = parseFloat(rainContainer.style.opacity || 0);
+
+                        if (weatherState === 'cloudy') {
+                            targetCloudOpacity = 1;
+                            targetRainOpacity = 0;
+                        } else if (weatherState === 'rainy') {
+                            targetCloudOpacity = 1; // Clouds always with rain
+                            targetRainOpacity = 1;
+                        } else { // 'clear'
+                            targetCloudOpacity = 0;
+                            targetRainOpacity = 0;
+                        }
+                    }
+                }
+                
+                // --- Weather transition animation ---
+                const transitionProgress = Math.min(1, (currentTime - weatherTransitionStartTime) / weatherTransitionDuration);
+
+                const currentCloudOpacity = initialCloudOpacity + (targetCloudOpacity - initialCloudOpacity) * transitionProgress;
+                const currentRainOpacity = initialRainOpacity + (targetRainOpacity - initialRainOpacity) * transitionProgress;
+
+
+                cloudContainer.style.opacity = `${currentCloudOpacity}`;
+                rainContainer.style.opacity = `${currentRainOpacity}`;
+
+                // Adjust stars opacity based on weather (stars fade out if weather elements are visible)
+                // Stars will remain visible even through clouds, but their opacity will be reduced
+                const cloudImpactFactor = 0.7; // 曇りや雨のときに星の透明度を何%まで下げるか (0.7の場合、元の透明度の30%まで見えます)
+                const weatherCoverOpacity = Math.max(currentCloudOpacity, currentRainOpacity); // Max opacity of either cloud or rain
+                starContainer.style.opacity = Math.max(0, Math.min(1, currentStarsBaseOpacity * (1 - weatherCoverOpacity * (1 - cloudImpactFactor))));
+
+
+                requestAnimationFrame(animateCycle);
+            };
+
+            // Start the animation loop
+            requestAnimationFrame(animateCycle);
+        });
+    </script>
+</body>
+</html>
