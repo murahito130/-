@@ -204,13 +204,19 @@
             /* Removed overflow: hidden from here to allow cloud-parts to extend */
         }
 
-        /* Individual cloud parts for more organic shape */
+        /* Individual cloud parts for more organic shape (modified for realistic design) */
         .cloud-part {
             position: absolute;
-            background: #f7f7f7; /* Soft off-white for cloud parts */
-            border-radius: 50%; /* Always round */
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Subtle shadow for soft edges */
-            opacity: 0.95; /* Slightly less transparent for better overlap effect */
+            /* よりリアルな雲の奥行きと光の散乱を模倣するグラデーション */
+            background: radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.95) 0%, rgba(240, 240, 240, 0.85) 50%, rgba(210, 210, 210, 0.6) 100%);
+            /* より一般的な雲の形に合うデフォルトのborder-radius */
+            border-radius: 50% 40% 60% 50% / 55% 45% 55% 45%;
+            /* 膨らみと層状感を出すための複数のシャドウ */
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.15), /* 全体的なソフトな光沢 */
+                        0 10px 30px rgba(0, 0, 0, 0.2), /* ボリュームを出すための強い底部の影 */
+                        inset 0 0 15px rgba(255, 255, 255, 0.6); /* 強調された内部のハイライト */
+            opacity: 0.9; /* より実体感のある雲のためのわずかに高い不透明度 */
+            filter: blur(2px); /* より自然なエッジのための柔らかいぼかし */
         }
 
         /* Adjust cloud-drift to cover more ground and look more natural */
@@ -348,8 +354,6 @@
                 cloud.style.top = `${top}%`;
                 cloud.style.animationDuration = `${duration}s`;
                 cloud.style.animationDelay = `${delay}s`;
-                // CSSアニメーションのtranslateXに任せるため、cloud.style.leftの初期設定は不要
-                // cloud.style.left = `-${baseWidth}px`; 
 
                 // Create multiple cloud parts for an organic shape
                 const numCloudParts = Math.floor(Math.random() * 7) + 5; // 各雲に5～11個のパーツ
@@ -364,13 +368,29 @@
                     // Allow parts to extend slightly outside the main cloud bounds for a more irregular shape
                     const partLeft = Math.random() * (baseWidth * 1.2) - (baseWidth * 0.1); // -10% to 110% of baseWidth
                     const partTop = Math.random() * (baseHeight * 1.2) - (baseHeight * 0.1); // -10% to 110% of baseHeight
-                    const partOpacity = Math.random() * 0.3 + 0.7; // 0.7から1.0の不透明度
+                    // Random border-radius for more irregular shapes
+                    const borderRadius1 = Math.random() * 30 + 30; // 30% to 60%
+                    const borderRadius2 = Math.random() * 30 + 30; // 30% to 60%
+                    const borderRadius3 = Math.random() * 30 + 30; // 30% to 60%
+                    const borderRadius4 = Math.random() * 30 + 30; // 30% to 60%
+                    const borderRadiusSlash1 = Math.random() * 30 + 30; // 30% to 60%
+                    const borderRadiusSlash2 = Math.random() * 30 + 30; // 30% to 60%
+                    const borderRadiusSlash3 = Math.random() * 30 + 30; // 30% to 60%
+                    const borderRadiusSlash4 = Math.random() * 30 + 30; // 30% to 60%
+
+                    // 不透明度の範囲を広げ、より多くの層状感を表現
+                    const partOpacity = Math.random() * 0.4 + 0.6; // 0.6から1.0の不透明度
 
                     cloudPart.style.width = `${partSize}px`;
                     cloudPart.style.height = `${partHeight}px`;
                     cloudPart.style.left = `${partLeft}px`;
                     cloudPart.style.top = `${partTop}px`;
                     cloudPart.style.opacity = `${partOpacity}`;
+                    // JSでランダムなborderRadiusを設定し、より有機的な形状にする
+                    cloudPart.style.borderRadius = `${borderRadius1}% ${borderRadius2}% ${borderRadius3}% ${borderRadius4}% / ${borderRadiusSlash1}% ${borderRadiusSlash2}% ${borderRadiusSlash3}% ${borderRadiusSlash4}%`;
+                    // 個々のパーツにランダムなz-indexを設定し、奥行きと重なりを表現
+                    cloudPart.style.zIndex = Math.floor(Math.random() * 10);
+
 
                     cloud.appendChild(cloudPart);
                 }
@@ -454,8 +474,8 @@
                 { progress: 0.1, colors: parseGradientColors("linear-gradient(to bottom, #FFB6C1, #87CEEB)") }, // Dawn (transition towards morning)
                 { progress: 0.25, colors: parseGradientColors("linear-gradient(to bottom, #7A9CAE, #5C7A8D)") }, // Morning (薄暗く調整)
                 { progress: 0.4, colors: parseGradientColors("linear-gradient(to bottom, #8FB2C2, #6F8D9D)") }, // Day (薄暗く調整)
-                { progress: 0.55, colors: parseGradientColors("linear-gradient(to bottom, #9E6D50, #7E5D40)") }, // Dusk (薄暗く調整)
-                { progress: 0.7, colors: parseGradientColors("linear-gradient(to bottom, #0a0a20, #000000)") }, // Night
+                { progress: 0.55, colors: parseGradientColors("linear-gradient(to bottom, #6A053C, #1A2A55)") }, // Dusk (変更: 深い赤紫から深い青へ)
+                { progress: 0.7, colors: parseGradientColors("linear-gradient(to bottom, #050A1A, #000005)") }, // Night (変更: わずかに青みがかった黒へ)
                 { progress: 1.0, colors: parseGradientColors("linear-gradient(to bottom, #000000, #0a0a20)") }  // Cycle end (same as Midnight for seamless loop)
             ];
 
