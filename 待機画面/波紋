@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水の波紋待機画面</title>
+    <style>
+        /*
+         * グローバルスタイルとボディの設定
+         * ページ全体を覆い、背景色を設定します。
+         */
+        body {
+            margin: 0;
+            overflow: hidden; /* スクロールバーを非表示にする */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* 最小ビューポート高さを確保 */
+            background-color: #0d1a2a; /* 深い青の背景色で水のような雰囲気を作る */
+            /* フォントはJavaScriptで設定されるカスタムプロパティを使用 */
+            font-family: var(--selected-font, 'Inter'), sans-serif;
+            color: #ffffff; /* テキストの色を白に設定 */
+            flex-direction: column; /* 要素を縦方向に配置 */
+        }
+
+        /*
+         * キャンバスのスタイル設定
+         * 波紋アニメーションが描画される領域です。
+         */
+        canvas {
+            display: block; /* 余分なスペースを削除 */
+            background-color: transparent; /* 背景はボディに任せる */
+            position: absolute; /* 画面全体に広がるように絶対位置指定 */
+            top: 0;
+            left: 0;
+            width: 100%; /* 幅をビューポートの100%にする */
+            height: 100%; /* 高さをビューポートの100%にする */
+            z-index: 1; /* コンテンツの下に配置 */
+        }
+
+        /*
+         * 待機メッセージのスタイル
+         * 画面中央に表示されるテキストです。
+         */
+        .waiting-message {
+            position: relative; /* z-indexを適用できるように相対位置指定 */
+            z-index: 2; /* キャンバスの上に配置 */
+            font-size: 1.8rem; /* フォントサイズを調整 */
+            text-align: center;
+            padding: 3vw; /* viewport width based paddingを調整 */
+            max-width: 90%; /* Limit width to 90% of parent */
+            box-sizing: border-box; /* Include padding in width calculation */
+            background-color: rgba(0, 0, 0, 0.3); /* 半透明の背景 */
+            border-radius: 15px; /* 角を丸くする */
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4); /* 青い光のシャドウ */
+            animation: pulse 2s infinite alternate; /* 点滅アニメーション */
+            border: 2px solid rgba(0, 255, 255, 0.6); /* 枠線を追加 */
+            backdrop-filter: blur(5px); /* 背景のぼかし効果 */
+            word-wrap: break-word; /* Ensure long words break within the box */
+        }
+
+        /* 点滅アニメーションのキーフレーム */
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 0.9;
+            }
+            100% {
+                transform: scale(1.05);
+                opacity: 1;
+            }
+        }
+
+        /*
+         * レスポンシブデザインの調整
+         * 画面サイズが小さい場合にフォントサイズとパディングを調整します。
+         */
+        @media (max-width: 768px) {
+            .waiting-message {
+                font-size: 1.2rem; /* tablets向けに調整 */
+                padding: 2.5vw;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .waiting-message {
+                font-size: 0.8rem; /* mobile向けに調整 */
+                padding: 1.5vw;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 水の波紋アニメーションを描画するキャンバス -->
+    <canvas id="rippleCanvas"></canvas>
+
+    <!-- 待機画面のメッセージ -->
+    <div class="waiting-message">
+        <h1>しばらくお待ちください……</h1>
+    </div>
+
+    <script>
+        // キャンバス要素とその2Dコンテキストを取得
+        const canvas = document.getElementById('rippleCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 波紋オブジェクトを格納する配列
+        const ripples = [];
+
+        // グローバル変数でアプリIDとFirebase設定を定義 (Canvas環境から提供されることを想定)
+        // これらの変数が未定義の場合に備えて、デフォルト値を設定します。
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+        /*
+         * URLパラメータからフォントを設定する関数
+         */
+        function setFontFromUrlParameter() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fontParam = urlParams.get('font');
+            // 'font'パラメータが存在する場合、カスタムCSSプロパティを設定
+            if (fontParam) {
+                document.body.style.setProperty('--selected-font', `'${fontParam}', sans-serif`);
+            } else {
+                // パラメータがない場合のデフォルトフォント
+                document.body.style.setProperty('--selected-font', `'Inter', sans-serif`);
+            }
+        }
+
+        /*
+         * Ripple クラス: 個々の波紋のプロパティと描画ロジックを定義します。
+         */
+        class Ripple {
+            constructor(x, y, maxRadius, speed, color) {
+                this.x = x;
+                this.y = y;
+                this.radius = 0; // 初期半径
+                this.maxRadius = maxRadius; // 最大半径
+                this.speed = speed; // 拡大速度
+                this.opacity = 1; // 初期不透明度
+                this.color = color; // 波紋の色
+            }
+
+            // 波紋の状態を更新するメソッド
+            update() {
+                this.radius += this.speed;
+                // 半径が最大値に近づくにつれて不透明度を減少させる
+                this.opacity = 1 - (this.radius / this.maxRadius);
+                // 不透明度が負にならないようにする
+                if (this.opacity < 0) {
+                    this.opacity = 0;
+                }
+            }
+
+            // 波紋を描画するメソッド
+            draw() {
+                ctx.beginPath(); // 新しいパスを開始
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); // 円を描画
+
+                // 波紋の線の太さを動的に設定
+                // 半径の中間で最も太くなり、端に向かって細くなる
+                const dynamicLineWidth = Math.sin(Math.PI * (this.radius / this.maxRadius)) * 4; // 最大太さ4px
+                ctx.lineWidth = Math.max(0.5, dynamicLineWidth); // 最小0.5pxを保証
+
+                // 波紋に光の輪郭を追加
+                ctx.shadowColor = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${this.opacity * 0.8})`; // 少し不透明度を下げた色でシャドウを設定
+                ctx.shadowBlur = this.opacity * 20; // 不透明度に応じて最大20pxのシャドウブラーを設定
+
+                ctx.strokeStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${this.opacity})`; // 線色を設定
+                ctx.stroke(); // 円を描画
+
+                // 次の描画のためにシャドウをリセット
+                ctx.shadowBlur = 0;
+                ctx.shadowColor = 'transparent';
+            }
+        }
+
+        /*
+         * キャンバスサイズを調整する関数
+         * ウィンドウのリサイズ時にキャンバスを画面にフィットさせます。
+         */
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        // 初期ロード時とウィンドウリサイズ時にキャンバスサイズを設定
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas(); // 最初の呼び出し
+
+        /*
+         * アニメーションループ
+         * 各フレームで波紋を更新・描画します。
+         */
+        function animate() {
+            // キャンバスをクリア
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 各波紋を更新し、描画する
+            for (let i = 0; i < ripples.length; i++) {
+                ripples[i].update();
+                ripples[i].draw();
+
+                // 不透明度が0になった波紋を配列から削除する
+                if (ripples[i].opacity <= 0) {
+                    ripples.splice(i, 1);
+                    i--; // 要素を削除したのでインデックスを調整
+                }
+            }
+
+            requestAnimationFrame(animate); // 次のフレームを要求
+        }
+
+        /*
+         * 新しい波紋を生成する関数
+         */
+        function createRipple() {
+            // 波紋の数が上限（10個）に達していない場合のみ新しい波紋を生成
+            if (ripples.length < 10) { // 波紋の数を10個に制限
+                const x = Math.random() * canvas.width; // ランダムなX座標
+                const y = Math.random() * canvas.height; // ランダムなY座標
+                const maxRadius = Math.random() * (canvas.width / 5) + 50; // 最大半径 (画面幅の1/5まで、最小50px)
+                // 拡大速度 (0.5から1.0まで)
+                const speed = Math.random() * 0.5 + 0.5;
+                // 水をイメージした青緑色の範囲でランダムな色を生成
+                const color = {
+                    r: Math.floor(Math.random() * 50) + 50, // 50-100 (少し赤み)
+                    g: Math.floor(Math.random() * 100) + 150, // 150-250 (強めの緑)
+                    b: Math.floor(Math.random() * 100) + 150  // 150-250 (強めの青)
+                };
+                ripples.push(new Ripple(x, y, maxRadius, speed, color));
+            }
+        }
+
+        // 一定間隔で新しい波紋を生成
+        // 最初の波紋を生成
+        setInterval(createRipple, 1500); // 1.5秒ごとに新しい波紋を生成
+
+        // ページロードが完了したらアニメーションを開始
+        window.onload = function() {
+            setFontFromUrlParameter(); // フォント設定を呼び出す
+            animate();
+        };
+
+        // オプション: マウスクリックで波紋を生成 (テスト用)
+        // canvas.addEventListener('click', (event) => {
+        //     const rect = canvas.getBoundingClientRect();
+        //     const x = event.clientX - rect.left;
+        //     const y = event.clientY - rect.top;
+        //     const maxRadius = Math.random() * (canvas.width / 5) + 50;
+        //     const speed = Math.random() * 0.8 + 0.2;
+        //     const color = {
+        //         r: Math.floor(Math.random() * 50) + 50,
+        //         g: Math.floor(Math.random() * 100) + 150,
+        //         b: Math.floor(Math.random() * 100) + 150
+        //     };
+        //     ripples.push(new Ripple(x, y, maxRadius, speed, color));
+        // });
+    </script>
+</body>
+</html>
