@@ -671,8 +671,8 @@
                             targetCloudOpacity = 1; // Clouds always with rain
                             targetRainOpacity = 1;
                         } else { // 'clear'
-                            // Modified: Set targetCloudOpacity to a small non-zero value for clear weather
-                            targetCloudOpacity = 0.1; // Clouds fade to very faint, but don't disappear completely
+                            // Modified: Set targetCloudOpacity to a higher value for clear weather to ensure visibility
+                            targetCloudOpacity = 0.5; // Clouds fade to be less dense, but remain clearly visible
                             targetRainOpacity = 0;
                         }
                     }
