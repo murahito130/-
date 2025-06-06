@@ -188,41 +188,19 @@
             width: 100%;
             height: 100%;
             z-index: 5; /* Between background and content */
-            opacity: 0; /* Hidden by default */
+            /* opacity: 0; Hidden by default - managed by JS now */
             pointer-events: none;
             overflow: hidden; /* Clouds will be clipped by this container */
-            transition: opacity 2s ease-in-out; /* Add smooth transition for opacity (changed from 1s to 2s) */
+            /* transition: opacity 2s ease-in-out; - managed by JS now */
         }
 
-        /* Dynamic cloud style (container for cloud parts) */
-        .cloud {
-            position: absolute; /* Allows positioning of the cloud container */
-            background: transparent; /* Main cloud container is transparent */
-            animation: cloud-drift linear infinite;
-            opacity: 0.9; /* Base opacity for the whole cloud */
-            pointer-events: none; /* Make sure clouds don't block clicks */
-            /* Removed overflow: hidden from here to allow cloud-parts to extend */
-        }
-
-        /* Individual cloud parts for more organic shape (modified for realistic design) */
-        .cloud-part {
+        /* New: Canvas for dynamic clouds */
+        #cloudCanvas {
             position: absolute;
-            /* よりリアルな雲の奥行きと光の散乱を模倣するグラデーション */
-            background: radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.95) 0%, rgba(240, 240, 240, 0.85) 50%, rgba(210, 210, 210, 0.6) 100%);
-            /* より一般的な雲の形に合うデフォルトのborder-radius */
-            border-radius: 50% 40% 60% 50% / 55% 45% 55% 45%;
-            /* 膨らみと層状感を出すための複数のシャドウ */
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.15), /* 全体的なソフトな光沢 */
-                        0 10px 30px rgba(0, 0, 0, 0.2), /* ボリュームを出すための強い底部の影 */
-                        inset 0 0 15px rgba(255, 255, 255, 0.6); /* 強調された内部のハイライト */
-            opacity: 0.9; /* より実体感のある雲のためのわずかに高い不透明度 */
-            filter: blur(2px); /* より自然なエッジのための柔らかいぼかし */
-        }
-
-        /* Adjust cloud-drift to cover more ground and look more natural */
-        @keyframes cloud-drift {
-            0% { transform: translateX(-100vw); } /* Start far left (off-screen) */
-            100% { transform: translateX(200vw); } /* End far right (off-screen, ensures full travel across view) */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
 
         .rain-container {
@@ -232,7 +210,7 @@
             width: 100%;
             height: 100%;
             z-index: 6; /* Above clouds */
-            opacity: 0; /* Hidden by default */
+            opacity: 0; /* Hidden by default - managed by JS now */
             pointer-events: none;
             overflow: hidden; /* Raindrops stay within the container */
             transition: opacity 2s ease-in-out; /* Add smooth transition for opacity (changed from 1s to 2s) */
@@ -241,26 +219,26 @@
         /* New styles for individual raindrops */
         .raindrop {
             position: absolute;
-            background: rgba(170, 200, 255, 0.6); /* 薄い青色の雨粒 */
+            background: rgba(170, 200, 255, 0.6); /* Thin blue raindrop */
             width: 2px;
             animation: raindrop-fall linear infinite;
-            opacity: 0; /* 初期は非表示 */
+            opacity: 0; /* Hidden initially */
         }
 
         @keyframes raindrop-fall {
             0% {
-                transform: translateY(-10vh) translateX(0); /* 画面上から開始 */
+                transform: translateY(-10vh) translateX(0); /* Start from top of screen */
                 opacity: 0;
             }
             10% {
-                opacity: 1; /* 降下開始時にフェードイン */
+                opacity: 1; /* Fade in when starting to fall */
             }
             90% {
-                opacity: 1; /* ほとんどの期間表示 */
+                opacity: 1; /* Visible for most of the duration */
             }
             100% {
-                transform: translateY(110vh) translateX(0); /* 画面下まで落下 */
-                opacity: 0; /* 画面外でフェードアウト */
+                transform: translateY(110vh) translateX(0); /* Fall to bottom of screen */
+                opacity: 0; /* Fade out off screen */
             }
         }
     </style>
@@ -274,7 +252,9 @@
     <div class="star-container" id="star-container"></div>
 
     <!-- Weather containers -->
-    <div class="cloud-container" id="cloud-container"></div>
+    <div class="cloud-container" id="cloud-container">
+        <canvas id="cloudCanvas"></canvas> <!-- Canvas for dynamic clouds -->
+    </div>
     <div class="rain-container" id="rain-container"></div>
 
     <div class="content">
@@ -282,18 +262,164 @@
     </div>
 
     <script>
+        // New variables for smooth weather transitions - Moved to a higher scope
+        let weatherTransitionStartTime = 0;
+        let weatherTransitionDuration = 2000; // 2 seconds
+        let weatherState = 'clear'; // 'clear', 'cloudy', 'rainy' // Track weather state
+        let targetCloudOpacity = 0;
+        let targetRainOpacity = 0;
+
+        // Track the actual opacity of clouds and rain being rendered
+        let initialCloudOpacity = 0; // Moved here to be globally accessible
+        let initialRainOpacity = 0;   // Moved here to be globally accessible
+        let lastRenderedCloudOpacity = 0;
+        let lastRenderedRainOpacity = 0;
+
+        let nextWeatherDecisionTime = 5000; // First decision after 5 seconds
+        const weatherDecisionInterval = 15000; // Change weather every 15 seconds
+
+        // Function to randomly choose new weather - Moved to a higher scope
+        const chooseNewWeather = () => {
+            const rand = Math.random();
+            if (rand < 0.6) { // 60% chance to be clear
+                return 'clear';
+            } else if (rand < 0.9) { // 30% chance for cloudy
+                return 'cloudy';
+            } else { // 10% chance for rainy
+                return 'rainy';
+            }
+        };
+
+
         document.addEventListener('DOMContentLoaded', () => {
             const background = document.getElementById('background-gradient');
             const sun = document.getElementById('sun');
             const moon = document.getElementById('moon');
             const starContainer = document.getElementById('star-container');
             const cloudContainer = document.getElementById('cloud-container');
+            const cloudCanvas = document.getElementById('cloudCanvas');
             const rainContainer = document.getElementById('rain-container');
+            const ctx = cloudCanvas.getContext('2d');
+
+            let animationFrameId; // For canceling animation frame on resize
+
+            // Adjust canvas size on load and resize
+            const adjustCanvasSize = () => {
+                cloudCanvas.width = cloudContainer.clientWidth;
+                cloudCanvas.height = cloudContainer.clientHeight;
+                // Redraw clouds after resize for immediate update
+                // The clouds will be redrawn in animateCycle, so no explicit redraw here.
+            };
+
+            // Initial size adjustment
+            adjustCanvasSize();
+            // Add resize listener
+            window.addEventListener('resize', adjustCanvasSize);
+
 
             const numStars = 150; // Number of stars to generate
             const numShootingStars = 5; // Number of shooting stars to generate
-            const numRaindrops = 200; // 生成する雨粒の数
-            const numClouds = 20; // 生成する雲の数 (大きな雲の数)
+            const numRaindrops = 200; // Number of raindrops to generate
+
+            // --- Cloud Generation (Canvas) ---
+            const clouds = [];
+            // Changed number of clouds to be more noticeable
+            const numClouds = 15; // Number of distinct cloud shapes
+
+            // Cloud object constructor
+            class Cloud {
+                constructor() {
+                    // Overall dimensions of the cloud
+                    // Decreased cloud width for smaller clouds that obscure less
+                    this.width = Math.random() * 200 + 150; // Cloud width (150px to 350px)
+                    this.height = this.width * (Math.random() * 0.15 + 0.25); // Cloud height (width * 0.25 to 0.4) - slightly narrower
+                    // Start off-screen left or right to ensure smooth entry
+                    this.x = Math.random() * cloudCanvas.width * 1.5 - cloudCanvas.width * 0.5;
+                    this.y = Math.random() * cloudCanvas.height * 0.3; // Top 30% of the screen
+                    // Increased cloud speed for noticeable flow
+                    this.speed = Math.random() * 0.7 + 0.3; // Cloud speed (0.3 to 1.0 pixels/frame)
+                    this.baseOpacity = Math.random() * 0.2 + 0.7; // Cloud base opacity (0.7 to 0.9) - individual cloud opacity
+
+                    this.blobs = [];
+                    const numBlobs = Math.floor(Math.random() * 5) + 6; // 6 to 10 blobs per cloud
+                    for (let i = 0; i < numBlobs; i++) {
+                        // Adjusted blob radius multiplier for smaller overall cloud size
+                        const blobRadius = (Math.random() * 0.2 + 0.3) * this.height; // Blob radius relative to cloud height (0.3 to 0.5)
+                        const blobX = (Math.random() - 0.5) * this.width * 0.8; // Relative X to center of cloud
+                        const blobY = (Math.random() - 0.5) * this.height * 0.8; // Relative Y to center of cloud
+                        this.blobs.push({ x: blobX, y: blobY, radius: blobRadius });
+                    }
+                }
+
+                // Update cloud position
+                update() {
+                    this.x += this.speed;
+                    // If cloud moves off screen to the right, reset its position to the left side
+                    if (this.x > cloudCanvas.width + this.width) {
+                        this.x = -this.width; // Reset to far left
+                        this.y = Math.random() * cloudCanvas.height * 0.3; // New random Y position
+                        // Regenerate blobs for a new shape when cloud wraps around
+                        this.blobs = [];
+                        const numBlobs = Math.floor(Math.random() * 5) + 6;
+                        for (let i = 0; i < numBlobs; i++) {
+                            const blobRadius = (Math.random() * 0.2 + 0.3) * this.height;
+                            const blobX = (Math.random() - 0.5) * this.width * 0.8;
+                            const blobY = (Math.random() - 0.5) * this.height * 0.8;
+                            this.blobs.push({ x: blobX, y: blobY, radius: blobRadius });
+                        }
+                        this.baseOpacity = Math.random() * 0.2 + 0.7; // New random base opacity
+                        this.speed = Math.random() * 0.7 + 0.3; // New random speed
+                    }
+                }
+
+                // Draw cloud on canvas
+                draw(context, overallCloudOpacity) {
+                    context.save();
+                    // Apply overall cloud container opacity and cloud's own base opacity
+                    // Ensure globalAlpha does not go completely to 0 to keep clouds visible until off-screen
+                    context.globalAlpha = this.baseOpacity * Math.max(0.1, overallCloudOpacity); // Minimum opacity of 0.1
+
+                    // Apply blur to the context for soft edges
+                    context.filter = 'blur(15px)'; // Increased blur for fluffier clouds
+
+                    // Set up cloud colors and gradient
+                    const gradient = context.createRadialGradient(
+                        this.x + this.width / 2, this.y + this.height / 2, this.height * 0.1,
+                        this.x + this.width / 2, this.y + this.height / 2, this.height * 0.8
+                    );
+                    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                    gradient.addColorStop(0.5, 'rgba(240, 240, 240, 0.8)');
+                    gradient.addColorStop(1, 'rgba(210, 210, 210, 0.6)');
+                    context.fillStyle = gradient;
+
+                    // Draw each blob
+                    this.blobs.forEach(blob => {
+                        context.beginPath();
+                        context.arc(this.x + this.width / 2 + blob.x, this.y + this.height / 2 + blob.y, blob.radius, 0, Math.PI * 2);
+                        context.fill();
+                    });
+
+                    // Add a subtle shadow for depth
+                    // Note: Canvas filter applies to everything drawn after it.
+                    // To have an unblurred shadow for a blurred shape,
+                    // you'd typically draw to an offscreen canvas first,
+                    // blur it, then draw it to the main canvas with a shadow.
+                    // For simplicity, we'll keep the current approach where the shadow also gets blurred.
+                    context.filter = 'none'; // Temporarily disable blur to draw shadow if needed unblurred, then re-enable
+                    context.shadowColor = 'rgba(0, 0, 0, 0.2)';
+                    context.shadowBlur = 30; // Increased shadow blur
+                    context.shadowOffsetX = 15; // Increased shadow offset
+                    context.shadowOffsetY = 15;
+
+                    context.restore(); // Restores context to before globalAlpha, filter, shadow settings
+                }
+            }
+
+            // Initialize clouds
+            for (let i = 0; i < numClouds; i++) {
+                clouds.push(new Cloud());
+            }
+
 
             // Function to create twinkling stars
             function createStar() {
@@ -326,78 +452,15 @@
             function createRaindrop() {
                 const raindrop = document.createElement('div');
                 raindrop.className = 'raindrop';
-                const size = Math.random() * 2 + 1; // 雨粒の幅 (1px to 3px)
-                const height = Math.random() * 10 + 5; // 雨粒の高さ (5px to 15px)
+                const size = Math.random() * 2 + 1; // Raindrop width (1px to 3px)
+                const height = Math.random() * 10 + 5; // Raindrop height (5px to 15px)
                 raindrop.style.width = `${size}px`;
                 raindrop.style.height = `${height}px`;
-                raindrop.style.left = `${Math.random() * 100}%`; // ランダムなX位置
-                raindrop.style.animationDuration = `${Math.random() * 0.8 + 0.4}s`; // 落下速度 (0.4s to 1.2s)
-                raindrop.style.animationDelay = `${Math.random() * 3}s`; // アニメーションの開始遅延
+                raindrop.style.left = `${Math.random() * 100}%`; // Random X position
+                raindrop.style.animationDuration = `${Math.random() * 0.8 + 0.4}s`; // Fall speed (0.4s to 1.2s)
+                raindrop.style.animationDelay = `${Math.random() * 3}s`; // Animation start delay
                 rainContainer.appendChild(raindrop);
             }
-
-            // Function to create individual clouds with multiple parts for organic shape
-            function createCloud() {
-                const cloud = document.createElement('div');
-                cloud.className = 'cloud';
-
-                // Main cloud container's position and animation properties
-                const baseWidth = Math.random() * 300 + 150; // 雲の基底幅 (150px to 450px)
-                const baseHeight = baseWidth * (Math.random() * 0.3 + 0.4); // 雲の基底高さ (幅の0.4倍から0.7倍)
-                const top = Math.random() * 25; // 雲のY位置 (画面上部から25%まで)
-                const duration = Math.random() * 70 + 60; // アニメーション速度 (60s to 130s)
-                // 各雲が読み込み直後から流れているように、アニメーション開始をランダムな負の値に設定
-                const delay = -(Math.random() * duration);
-
-                cloud.style.width = `${baseWidth}px`;
-                cloud.style.height = `${baseHeight}px`;
-                cloud.style.top = `${top}%`;
-                cloud.style.animationDuration = `${duration}s`;
-                cloud.style.animationDelay = `${delay}s`;
-
-                // Create multiple cloud parts for an organic shape
-                const numCloudParts = Math.floor(Math.random() * 7) + 5; // 各雲に5～11個のパーツ
-                for (let i = 0; i < numCloudParts; i++) {
-                    const cloudPart = document.createElement('div');
-                    cloudPart.className = 'cloud-part';
-
-                    const partSize = Math.random() * baseWidth * 0.8 + baseWidth * 0.2; // 親の幅の20%～100%のサイズ
-                    const partHeightFactor = Math.random() * 0.5 + 0.7; // 高さの幅に対する比率 (0.7から1.2)
-                    const partHeight = partSize * partHeightFactor;
-
-                    // Allow parts to extend slightly outside the main cloud bounds for a more irregular shape
-                    const partLeft = Math.random() * (baseWidth * 1.2) - (baseWidth * 0.1); // -10% to 110% of baseWidth
-                    const partTop = Math.random() * (baseHeight * 1.2) - (baseHeight * 0.1); // -10% to 110% of baseHeight
-                    // Random border-radius for more irregular shapes
-                    const borderRadius1 = Math.random() * 30 + 30; // 30% to 60%
-                    const borderRadius2 = Math.random() * 30 + 30; // 30% to 60%
-                    const borderRadius3 = Math.random() * 30 + 30; // 30% to 60%
-                    const borderRadius4 = Math.random() * 30 + 30; // 30% to 60%
-                    const borderRadiusSlash1 = Math.random() * 30 + 30; // 30% to 60%
-                    const borderRadiusSlash2 = Math.random() * 30 + 30; // 30% to 60%
-                    const borderRadiusSlash3 = Math.random() * 30 + 30; // 30% to 60%
-                    const borderRadiusSlash4 = Math.random() * 30 + 30; // 30% to 60%
-
-                    // 不透明度の範囲を広げ、より多くの層状感を表現
-                    const partOpacity = Math.random() * 0.4 + 0.6; // 0.6から1.0の不透明度
-
-                    cloudPart.style.width = `${partSize}px`;
-                    cloudPart.style.height = `${partHeight}px`;
-                    cloudPart.style.left = `${partLeft}px`;
-                    cloudPart.style.top = `${partTop}px`;
-                    cloudPart.style.opacity = `${partOpacity}`;
-                    // JSでランダムなborderRadiusを設定し、より有機的な形状にする
-                    cloudPart.style.borderRadius = `${borderRadius1}% ${borderRadius2}% ${borderRadius3}% ${borderRadius4}% / ${borderRadiusSlash1}% ${borderRadiusSlash2}% ${borderRadiusSlash3}% ${borderRadiusSlash4}%`;
-                    // 個々のパーツにランダムなz-indexを設定し、奥行きと重なりを表現
-                    cloudPart.style.zIndex = Math.floor(Math.random() * 10);
-
-
-                    cloud.appendChild(cloudPart);
-                }
-
-                cloudContainer.appendChild(cloud);
-            }
-
 
             // Generate specified number of stars and shooting stars
             for (let i = 0; i < numStars; i++) {
@@ -409,10 +472,6 @@
             // Generate raindrops
             for (let i = 0; i < numRaindrops; i++) {
                 createRaindrop();
-            }
-            // Generate clouds
-            for (let i = 0; i < numClouds; i++) {
-                createCloud();
             }
 
 
@@ -472,40 +531,15 @@
             const bgKeyframes = [
                 { progress: 0.0, colors: parseGradientColors("linear-gradient(to bottom, #000000, #0a0a20)") }, // Midnight (start)
                 { progress: 0.1, colors: parseGradientColors("linear-gradient(to bottom, #FFB6C1, #87CEEB)") }, // Dawn (transition towards morning)
-                { progress: 0.25, colors: parseGradientColors("linear-gradient(to bottom, #7A9CAE, #5C7A8D)") }, // Morning (薄暗く調整)
-                { progress: 0.4, colors: parseGradientColors("linear-gradient(to bottom, #8FB2C2, #6F8D9D)") }, // Day (薄暗く調整)
-                { progress: 0.55, colors: parseGradientColors("linear-gradient(to bottom, #6A053C, #1A2A55)") }, // Dusk (変更: 深い赤紫から深い青へ)
-                { progress: 0.7, colors: parseGradientColors("linear-gradient(to bottom, #050A1A, #000005)") }, // Night (変更: わずかに青みがかった黒へ)
+                { progress: 0.25, colors: parseGradientColors("linear-gradient(to bottom, #7A9CAE, #5C7A8D)") }, // Morning (adjusted to be slightly darker)
+                { progress: 0.4, colors: parseGradientColors("linear-gradient(to bottom, #8FB2C2, #6F8D9D)") }, // Day (adjusted to be slightly darker)
+                { progress: 0.55, colors: parseGradientColors("linear-gradient(to bottom, #6A053C, #1A2A55)") }, // Dusk (changed: deep reddish-purple to deep blue)
+                { progress: 0.7, colors: parseGradientColors("linear-gradient(to bottom, #050A1A, #000005)") }, // Night (changed: slightly bluish black)
                 { progress: 1.0, colors: parseGradientColors("linear-gradient(to bottom, #000000, #0a0a20)") }  // Cycle end (same as Midnight for seamless loop)
             ];
 
             const totalCycleDuration = 60000; // Total duration of the entire day-night cycle in milliseconds (60 seconds)
             let startTime = null;
-
-            // New variables for smooth weather transitions
-            let weatherTransitionStartTime = 0;
-            let weatherTransitionDuration = 2000; // 2秒に変更
-            let weatherState = 'clear'; // 'clear', 'cloudy', 'rainy' // 天気の状態を追跡する
-            let targetCloudOpacity = 0;
-            let targetRainOpacity = 0;
-
-            let initialCloudOpacity = 0; // Initialize in outer scope
-            let initialRainOpacity = 0;   // Initialize in outer scope
-
-            let nextWeatherDecisionTime = 5000; // 最初の決定は5秒後
-            const weatherDecisionInterval = 15000; // 15秒ごとに天気を変更
-
-            // 天気をランダムに選択する関数を復活
-            const chooseNewWeather = () => {
-                const rand = Math.random();
-                if (rand < 0.6) { // 60% chance to be clear
-                    return 'clear';
-                } else if (rand < 0.9) { // 30% chance for cloudy
-                    return 'cloudy';
-                } else { // 10% chance for rainy
-                    return 'rainy';
-                }
-            };
 
             // Main animation loop
             const animateCycle = (currentTime) => {
@@ -626,8 +660,9 @@
                     if (newWeather !== weatherState) {
                         weatherState = newWeather;
                         weatherTransitionStartTime = currentTime; // Record time of weather change
-                        initialCloudOpacity = parseFloat(cloudContainer.style.opacity || 0); // Capture current opacity
-                        initialRainOpacity = parseFloat(rainContainer.style.opacity || 0);
+                        // Capture the last rendered opacity values for smooth transition start
+                        initialCloudOpacity = lastRenderedCloudOpacity;
+                        initialRainOpacity = lastRenderedRainOpacity;
 
                         if (weatherState === 'cloudy') {
                             targetCloudOpacity = 1;
@@ -636,7 +671,8 @@
                             targetCloudOpacity = 1; // Clouds always with rain
                             targetRainOpacity = 1;
                         } else { // 'clear'
-                            targetCloudOpacity = 0;
+                            // Modified: Set targetCloudOpacity to a small non-zero value for clear weather
+                            targetCloudOpacity = 0.1; // Clouds fade to very faint, but don't disappear completely
                             targetRainOpacity = 0;
                         }
                     }
@@ -648,22 +684,34 @@
                 const currentCloudOpacity = initialCloudOpacity + (targetCloudOpacity - initialCloudOpacity) * transitionProgress;
                 const currentRainOpacity = initialRainOpacity + (targetRainOpacity - initialRainOpacity) * transitionProgress;
 
+                // Update last rendered opacities for the next frame/transition
+                lastRenderedCloudOpacity = currentCloudOpacity;
+                lastRenderedRainOpacity = currentRainOpacity;
 
-                cloudContainer.style.opacity = `${currentCloudOpacity}`;
+
+                // Clear canvas for redrawing clouds
+                ctx.clearRect(0, 0, cloudCanvas.width, cloudCanvas.height);
+                // Update and draw clouds
+                clouds.forEach(cloud => {
+                    cloud.update();
+                    cloud.draw(ctx, currentCloudOpacity); // Pass currentCloudOpacity for blending
+                });
+
+                // rainContainer still uses style.opacity, so it should be fine.
                 rainContainer.style.opacity = `${currentRainOpacity}`;
 
                 // Adjust stars opacity based on weather (stars fade out if weather elements are visible)
                 // Stars will remain visible even through clouds, but their opacity will be reduced
-                const cloudImpactFactor = 0.7; // 曇りや雨のときに星の透明度を何%まで下げるか (0.7の場合、元の透明度の30%まで見えます)
+                const cloudImpactFactor = 0.7; // How much star transparency is reduced when cloudy or rainy (0.7 means 30% of original transparency is visible)
                 const weatherCoverOpacity = Math.max(currentCloudOpacity, currentRainOpacity); // Max opacity of either cloud or rain
                 starContainer.style.opacity = Math.max(0, Math.min(1, currentStarsBaseOpacity * (1 - weatherCoverOpacity * (1 - cloudImpactFactor))));
 
 
-                requestAnimationFrame(animateCycle);
+                animationFrameId = requestAnimationFrame(animateCycle);
             };
 
             // Start the animation loop
-            requestAnimationFrame(animateCycle);
+            animationFrameId = requestAnimationFrame(animateCycle);
         });
     </script>
 </body>
