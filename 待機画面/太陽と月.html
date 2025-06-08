@@ -301,14 +301,36 @@
 
         // 天候をランダムに選択する関数
         const chooseNewWeather = () => {
+            let newWeather;
             const rand = Math.random();
-            if (rand < 0.6) {
-                return 'clear';
-            } else if (rand < 0.9) {
-                return 'cloudy';
-            } else {
-                return 'rainy';
+
+            // 現在の天候状態に基づいて次の天候を決定
+            if (weatherState === 'clear') {
+                if (rand < 0.6) { // 60%の確率で晴れを維持 (元: 70%)
+                    newWeather = 'clear';
+                } else if (rand < 0.95) { // 35%の確率で曇りになる (元: 25%)
+                    newWeather = 'cloudy';
+                } else { // 5%の確率で雨になる
+                    newWeather = 'rainy';
+                }
+            } else if (weatherState === 'cloudy') {
+                if (rand < 0.3) { // 30%の確率で晴れに戻る (元: 40%)
+                    newWeather = 'clear';
+                } else if (rand < 0.85) { // 55%の確率で曇りを維持 (元: 45%)
+                    newWeather = 'cloudy';
+                } else { // 15%の確率で雨になる
+                    newWeather = 'rainy';
+                }
+            } else { // weatherState === 'rainy'
+                if (rand < 0.15) { // 15%の確率で晴れに戻る (元: 20%)
+                    newWeather = 'clear';
+                } else if (rand < 0.65) { // 50%の確率で曇りになる (元: 40%)
+                    newWeather = 'cloudy';
+                } else { // 35%の確率で雨を維持 (元: 40%)
+                    newWeather = 'rainy';
+                }
             }
+            return newWeather;
         };
 
         // キャンバスサイズを調整し、リサイズイベントリスナーを設定する関数
@@ -399,7 +421,8 @@
                 this.height = this.width * (Math.random() * 0.15 + 0.25);
                 this.x = Math.random() * elements.cloudCanvas.width * 1.5 - elements.cloudCanvas.width * 0.5;
                 this.y = Math.random() * elements.cloudCanvas.height * 0.3;
-                this.speed = Math.random() * 0.7 + 0.3;
+                // 雲の速度を調整: 0.8から2.3 pixels/frame に変更
+                this.speed = Math.random() * 1.5 + 0.8;
                 this.baseOpacity = Math.random() * 0.2 + 0.7;
 
                 this.blobs = [];
@@ -427,13 +450,31 @@
                 context.globalAlpha = this.baseOpacity * Math.max(0.1, overallCloudOpacity);
                 context.filter = 'blur(15px)';
 
+                // 雲の色とグラデーションを設定
+                let cloudGradientColors;
+                if (weatherState === 'rainy') {
+                    // 雨天時の雲の色（曇天のような灰色）
+                    cloudGradientColors = [
+                        'rgba(150, 150, 150, 0.9)', // Darker white/light gray
+                        'rgba(120, 120, 120, 0.8)', // Medium gray
+                        'rgba(90, 90, 90, 0.6)'    // Darker gray
+                    ];
+                } else {
+                    // 通常の雲の色
+                    cloudGradientColors = [
+                        'rgba(255, 255, 255, 0.9)',
+                        'rgba(240, 240, 240, 0.8)',
+                        'rgba(210, 210, 210, 0.6)'
+                    ];
+                }
+
                 const gradient = context.createRadialGradient(
                     this.x + this.width / 2, this.y + this.height / 2, this.height * 0.1,
                     this.x + this.width / 2, this.y + this.height / 2, this.height * 0.8
                 );
-                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-                gradient.addColorStop(0.5, 'rgba(240, 240, 240, 0.8)');
-                gradient.addColorStop(1, 'rgba(210, 210, 210, 0.6)');
+                gradient.addColorStop(0, cloudGradientColors[0]);
+                gradient.addColorStop(0.5, cloudGradientColors[1]);
+                gradient.addColorStop(1, cloudGradientColors[2]);
                 context.fillStyle = gradient;
 
                 this.blobs.forEach(blob => {
@@ -617,7 +658,7 @@
             // 天候決定ロジック
             if (currentTime >= nextWeatherDecisionTime) {
                 nextWeatherDecisionTime = currentTime + WEATHER_DECISION_INTERVAL; // 次の決定時間を更新
-                const newWeather = chooseNewWeather();
+                const newWeather = chooseNewWeather(); // 天候選択ロジックを更新
 
                 if (newWeather !== weatherState) {
                     weatherState = newWeather;
@@ -629,7 +670,7 @@
                         targetCloudOpacity = 1;
                         targetRainOpacity = 0;
                     } else if (weatherState === 'rainy') {
-                        targetCloudOpacity = 1;
+                        targetCloudOpacity = 1; // 雨には常に雲
                         targetRainOpacity = 1;
                     } else { // 'clear'
                         targetCloudOpacity = 0.5;
