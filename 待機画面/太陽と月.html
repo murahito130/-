@@ -299,35 +299,34 @@
         const NUM_CLOUDS = 15;
         const TOTAL_CYCLE_DURATION = 60000; // 60 seconds
 
-        // 天候をランダムに選択する関数
+        // 天候をランダムに選択する関数 - 天候の遷移確率を微調整
         const chooseNewWeather = () => {
             let newWeather;
             const rand = Math.random();
 
-            // 現在の天候状態に基づいて次の天候を決定
             if (weatherState === 'clear') {
-                if (rand < 0.6) { // 60%の確率で晴れを維持 (元: 70%)
+                if (rand < 0.55) { // 晴れを維持する確率をわずかに減少 (元: 0.6)
                     newWeather = 'clear';
-                } else if (rand < 0.95) { // 35%の確率で曇りになる (元: 25%)
-                    newWeather = 'cloudy';
-                } else { // 5%の確率で雨になる
-                    newWeather = 'rainy';
+                } else if (rand < 0.95) { // 曇りになる確率をわずかに増加 (元: 0.95, 実質0.35)
+                    newWeather = 'cloudy'; // 0.95 - 0.55 = 0.40
+                } else { // 雨になる確率はそのまま
+                    newWeather = 'rainy'; // 1.0 - 0.95 = 0.05
                 }
             } else if (weatherState === 'cloudy') {
-                if (rand < 0.3) { // 30%の確率で晴れに戻る (元: 40%)
+                if (rand < 0.25) { // 晴れに戻る確率をわずかに減少 (元: 0.3)
                     newWeather = 'clear';
-                } else if (rand < 0.85) { // 55%の確率で曇りを維持 (元: 45%)
-                    newWeather = 'cloudy';
-                } else { // 15%の確率で雨になる
-                    newWeather = 'rainy';
+                } else if (rand < 0.85) { // 曇りを維持する確率をわずかに増加 (元: 0.85, 実質0.55)
+                    newWeather = 'cloudy'; // 0.85 - 0.25 = 0.60
+                } else { // 雨になる確率はそのまま
+                    newWeather = 'rainy'; // 1.0 - 0.85 = 0.15
                 }
             } else { // weatherState === 'rainy'
-                if (rand < 0.15) { // 15%の確率で晴れに戻る (元: 20%)
+                if (rand < 0.1) { // 晴れに戻る確率を減少 (元: 0.15)
                     newWeather = 'clear';
-                } else if (rand < 0.65) { // 50%の確率で曇りになる (元: 40%)
-                    newWeather = 'cloudy';
-                } else { // 35%の確率で雨を維持 (元: 40%)
-                    newWeather = 'rainy';
+                } else if (rand < 0.65) { // 曇りになる確率を増加 (元: 0.65, 実質0.5)
+                    newWeather = 'cloudy'; // 0.65 - 0.1 = 0.55
+                } else { // 雨を維持する確率はそのまま
+                    newWeather = 'rainy'; // 1.0 - 0.65 = 0.35
                 }
             }
             return newWeather;
