@@ -188,10 +188,8 @@
             width: 100%;
             height: 100%;
             z-index: 5; /* Between background and content */
-            /* opacity: 0; Hidden by default - managed by JS now */
             pointer-events: none;
             overflow: hidden; /* Clouds will be clipped by this container */
-            /* transition: opacity 2s ease-in-out; - managed by JS now */
         }
 
         /* New: Canvas for dynamic clouds */
@@ -263,203 +261,74 @@
     </div>
 
     <script>
-        // グローバル変数
-        let weatherTransitionStartTime = 0;
-        let weatherTransitionDuration = 2000; // 2 seconds
-        let weatherState = 'clear'; // 'clear', 'cloudy', 'rainy' // Track weather state
-        let targetCloudOpacity = 0;
-        let targetRainOpacity = 0;
+        // DOM要素のキャッシュ
+        const elements = {
+            background: document.getElementById('background-gradient'),
+            sun: document.getElementById('sun'),
+            moon: document.getElementById('moon'),
+            starContainer: document.getElementById('star-container'),
+            cloudContainer: document.getElementById('cloud-container'),
+            cloudCanvas: document.getElementById('cloudCanvas'),
+            rainContainer: document.getElementById('rain-container'),
+            ctx: null // will be set in init
+        };
 
-        // レンダリングされた雲と雨の実際の不透明度を追跡
+        // グローバルなアニメーションと天候の状態変数
+        let animationFrameId;
+        let startTime = null;
+
+        let weatherState = 'clear'; // 'clear', 'cloudy', 'rainy'
+        let weatherTransitionStartTime = 0;
+        const WEATHER_TRANSITION_DURATION = 2000; // 2 seconds
+
         let initialCloudOpacity = 0;
         let initialRainOpacity = 0;
         let lastRenderedCloudOpacity = 0;
         let lastRenderedRainOpacity = 0;
 
-        let nextWeatherDecisionTime = 5000; // 最初の決定は5秒後
-        const weatherDecisionInterval = 15000; // 15秒ごとに天候を変更
+        let targetCloudOpacity = 0;
+        let targetRainOpacity = 0;
+
+        // 初期決定時間を5秒後に設定（元のコードの動作に合わせる）
+        let nextWeatherDecisionTime = 5000; 
+        const WEATHER_DECISION_INTERVAL = 15000; // 15 seconds
+
+        const NUM_STARS = 150;
+        const NUM_SHOOTING_STARS = 5;
+        const NUM_RAINDROPS = 200;
+        const NUM_CLOUDS = 15;
+        const TOTAL_CYCLE_DURATION = 60000; // 60 seconds
 
         // 天候をランダムに選択する関数
         const chooseNewWeather = () => {
             const rand = Math.random();
-            if (rand < 0.6) { // 60% clear
+            if (rand < 0.6) {
                 return 'clear';
-            } else if (rand < 0.9) { // 30% cloudy
+            } else if (rand < 0.9) {
                 return 'cloudy';
-            } else { // 10% rainy
+            } else {
                 return 'rainy';
             }
         };
 
-        // DOM要素の取得
-        const background = document.getElementById('background-gradient');
-        const sun = document.getElementById('sun');
-        const moon = document.getElementById('moon');
-        const starContainer = document.getElementById('star-container');
-        const cloudContainer = document.getElementById('cloud-container');
-        const cloudCanvas = document.getElementById('cloudCanvas');
-        const rainContainer = document.getElementById('rain-container');
-        const ctx = cloudCanvas.getContext('2d');
-
-        let animationFrameId; // For canceling animation frame on resize
-
-        // キャンバスサイズをロード時とリサイズ時に調整
-        const adjustCanvasSize = () => {
-            cloudCanvas.width = cloudContainer.clientWidth;
-            cloudCanvas.height = cloudContainer.clientHeight;
+        // キャンバスサイズを調整し、リサイズイベントリスナーを設定する関数
+        const setupCanvas = () => {
+            elements.ctx = elements.cloudCanvas.getContext('2d');
+            const adjustSize = () => {
+                elements.cloudCanvas.width = elements.cloudContainer.clientWidth;
+                elements.cloudCanvas.height = elements.cloudContainer.clientHeight;
+                // リサイズ時に歪みを防ぐために雲を再描画
+                if (elements.ctx && clouds.length > 0) {
+                    elements.ctx.clearRect(0, 0, elements.cloudCanvas.width, elements.cloudCanvas.height);
+                    clouds.forEach(cloud => cloud.draw(elements.ctx, lastRenderedCloudOpacity));
+                }
+            };
+            adjustSize();
+            window.addEventListener('resize', adjustSize);
         };
 
-        // 初期サイズ調整
-        adjustCanvasSize();
-        // リサイズリスナーの追加
-        window.addEventListener('resize', adjustCanvasSize);
-
-        const numStars = 150; // 生成する星の数
-        const numShootingStars = 5; // 生成する流れ星の数
-        const numRaindrops = 200; // 生成する雨粒の数
-
-        // --- 雲の生成 (Canvas) ---
-        const clouds = [];
-        const numClouds = 15; // 個々の雲の数
-
-        // 雲オブジェクトのコンストラクタ
-        class Cloud {
-            constructor() {
-                this.width = Math.random() * 200 + 150; // 雲の幅 (150px to 350px)
-                this.height = this.width * (Math.random() * 0.15 + 0.25); // 雲の高さ (width * 0.25 to 0.4)
-                this.x = Math.random() * cloudCanvas.width * 1.5 - cloudCanvas.width * 0.5;
-                this.y = Math.random() * cloudCanvas.height * 0.3; // 画面上部30%
-                this.speed = Math.random() * 0.7 + 0.3; // 雲の速度 (0.3 to 1.0 pixels/frame)
-                this.baseOpacity = Math.random() * 0.2 + 0.7; // 雲の基本不透明度 (0.7 to 0.9)
-
-                this.blobs = [];
-                const numBlobs = Math.floor(Math.random() * 5) + 6; // 雲ごとのブロブ数 (6 to 10)
-                for (let i = 0; i < numBlobs; i++) {
-                    const blobRadius = (Math.random() * 0.2 + 0.3) * this.height;
-                    const blobX = (Math.random() - 0.5) * this.width * 0.8;
-                    const blobY = (Math.random() - 0.5) * this.height * 0.8;
-                    this.blobs.push({ x: blobX, y: blobY, radius: blobRadius });
-                }
-            }
-
-            // 雲の位置を更新
-            update() {
-                this.x += this.speed;
-                // 雲が画面の右端を越えたら左端にリセット
-                if (this.x > cloudCanvas.width + this.width) {
-                    this.x = -this.width; // 画面左端にリセット
-                    this.y = Math.random() * cloudCanvas.height * 0.3; // 新しいY位置
-                    // 雲が巻き戻るときに新しい形状のためにブロブを再生成
-                    this.blobs = [];
-                    const numBlobs = Math.floor(Math.random() * 5) + 6;
-                    for (let i = 0; i < numBlobs; i++) {
-                        const blobRadius = (Math.random() * 0.2 + 0.3) * this.height;
-                        const blobX = (Math.random() - 0.5) * this.width * 0.8;
-                        const blobY = (Math.random() - 0.5) * this.height * 0.8;
-                        this.blobs.push({ x: blobX, y: blobY, radius: blobRadius });
-                    }
-                    this.baseOpacity = Math.random() * 0.2 + 0.7; // 新しいランダムな基本不透明度
-                    this.speed = Math.random() * 0.7 + 0.3; // 新しいランダムな速度
-                }
-            }
-
-            // キャンバスに雲を描画
-            draw(context, overallCloudOpacity) {
-                context.save();
-                // 雲コンテナ全体の不透明度と雲自身の基本不透明度を適用
-                context.globalAlpha = this.baseOpacity * Math.max(0.1, overallCloudOpacity); // 最低不透明度0.1
-
-                // 柔らかいエッジのためにコンテキストにぼかしを適用
-                context.filter = 'blur(15px)'; // 雲をよりふわふわにするためにぼかしを増加
-
-                // 雲の色とグラデーションを設定
-                const gradient = context.createRadialGradient(
-                    this.x + this.width / 2, this.y + this.height / 2, this.height * 0.1,
-                    this.x + this.width / 2, this.y + this.height / 2, this.height * 0.8
-                );
-                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-                gradient.addColorStop(0.5, 'rgba(240, 240, 240, 0.8)');
-                gradient.addColorStop(1, 'rgba(210, 210, 210, 0.6)');
-                context.fillStyle = gradient;
-
-                // 各ブロブを描画
-                this.blobs.forEach(blob => {
-                    context.beginPath();
-                    context.arc(this.x + this.width / 2 + blob.x, this.y + this.height / 2 + blob.y, blob.radius, 0, Math.PI * 2);
-                    context.fill();
-                });
-
-                // 奥行きのために微妙な影を追加
-                context.filter = 'none'; // 影を描画するために一時的にぼかしを無効化
-                context.shadowColor = 'rgba(0, 0, 0, 0.2)';
-                context.shadowBlur = 30; // 影のぼかしを増加
-                context.shadowOffsetX = 15; // 影のオフセットを増加
-                context.shadowOffsetY = 15;
-
-                context.restore(); // グローバルアルファ、フィルター、シャドウ設定前のコンテキストを復元
-            }
-        }
-
-        // 雲の初期化
-        for (let i = 0; i < numClouds; i++) {
-            clouds.push(new Cloud());
-        }
-
-        // きらめく星を作成する関数
-        function createStar() {
-            const star = document.createElement('div');
-            star.className = 'star';
-            const size = Math.random() * 3 + 1; // 星のサイズ (1px to 4px)
-            star.style.width = `${size}px`;
-            star.style.height = `${size}px`;
-            star.style.left = `${Math.random() * 100}%`; // ランダムなX位置
-            star.style.top = `${Math.random() * 100}%`; // ランダムなY位置
-            star.style.animationDelay = `${Math.random() * 4}s`; // アニメーション開始をずらす
-            starContainer.appendChild(star);
-        }
-
-        // 流れ星を作成する関数
-        function createShootingStar() {
-            const shootingStar = document.createElement('div');
-            shootingStar.className = 'shooting-star';
-            // 画面上のどこからでも出現するように位置を調整
-            shootingStar.style.left = `${Math.random() * 100}%`;
-            shootingStar.style.top = `${Math.random() * 100}%`;
-            // アニメーション開始をずらす
-            shootingStar.style.animationDelay = `${Math.random() * 8}s`;
-            // 流れ星の速度をランダム化
-            shootingStar.style.animationDuration = `${Math.random() * 5 + 5}s`; // 5s to 10s
-            starContainer.appendChild(shootingStar);
-        }
-
-        // 個々の雨粒を作成する関数
-        function createRaindrop() {
-            const raindrop = document.createElement('div');
-            raindrop.className = 'raindrop';
-            const size = Math.random() * 2 + 1; // 雨粒の幅 (1px to 3px)
-            const height = Math.random() * 10 + 5; // 雨粒の高さ (5px to 15px)
-            raindrop.style.width = `${size}px`;
-            raindrop.style.height = `${height}px`;
-            raindrop.style.left = `${Math.random() * 100}%`; // ランダムなX位置
-            raindrop.style.animationDuration = `${Math.random() * 0.8 + 0.4}s`; // 落下速度 (0.4s to 1.2s)
-            raindrop.style.animationDelay = `${Math.random() * 3}s`; // アニメーション開始遅延
-            rainContainer.appendChild(raindrop);
-        }
-
-        // 指定された数の星と流れ星を生成
-        for (let i = 0; i < numStars; i++) {
-            createStar();
-        }
-        for (let i = 0; i < numShootingStars; i++) {
-            createShootingStar();
-        }
-        // 雨粒を生成
-        for (let i = 0; i < numRaindrops; i++) {
-            createRaindrop();
-        }
-
         // ヘルパー関数: グラデーション文字列からRGBコンポーネントを解析
-        function parseGradientColors(gradientString) {
+        const parseGradientColors = (gradientString) => {
             const cleanString = gradientString.replace(/linear-gradient\(to bottom,\s*|\)/g, '');
             const colorParts = cleanString.split(', ').map(part => part.trim());
 
@@ -481,141 +350,250 @@
                 } else if (colorPart.startsWith('rgb')) {
                     return rgbToRgb(colorPart);
                 }
-                return [0, 0, 0]; // デフォルト
+                return [0, 0, 0];
             });
 
             return { start: colors[0], end: colors[1] };
-        }
+        };
 
         // ヘルパー関数: 2つのRGB色を補間
-        function interpolateRgb(color1, color2, progress) {
+        const interpolateRgb = (color1, color2, progress) => {
             const r = Math.round(color1[0] + (color2[0] - color1[0]) * progress);
             const g = Math.round(color1[1] + (color2[1] - color1[1]) * progress);
             const b = Math.round(color1[2] + (color2[2] - color1[2]) * progress);
             return `rgb(${r}, ${g}, ${b})`;
-        }
+        };
 
         // 天体用の共通の弧のパスを定義
-        // t: 弧に沿った進行度、0から1 (0=左の地平線、0.5=天頂、1=右の地平線)
-        // y_zenith: 最も低いY値 (画面上の最高点)
-        // y_horizon: 最も高いY値 (画面上の最低点、地平線近く)
-        const getArcPosition = (t, y_zenith = 5, y_horizon = 30) => {
-            const x = -20 + (140 * t); // x from -20% to 120%
-            // 弧を作成するためにyにサイン波を使用
-            // t=0 -> y=y_horizon (地平線から開始)
-            // t=0.5 -> y=y_zenith (ピーク)
-            // t=1 -> y=y_horizon (地平線で終了)
-            const y = y_horizon + (y_zenith - y_horizon) * Math.sin(t * Math.PI);
+        const getArcPosition = (t, yZenith = 5, yHorizon = 30) => {
+            const x = -20 + (140 * t);
+            const y = yHorizon + (yZenith - yHorizon) * Math.sin(t * Math.PI);
             return { x, y };
         };
 
         // サイクル全体の背景色のキーフレームを定義
-        // これらのポイントは、特定のglobalProgress値 (0から1) での空の色を定義
         const bgKeyframes = [
-            { progress: 0.0, colors: parseGradientColors("linear-gradient(to bottom, #000000, #0a0a20)") }, // 真夜中 (開始)
-            { progress: 0.1, colors: parseGradientColors("linear-gradient(to bottom, #2c0b40, #5c2070)") }, // 早朝の夜明け (深い紫)
-            { progress: 0.2, colors: parseGradientColors("linear-gradient(to bottom, #FFC0CB, #87CEEB)") }, // 日の出 (淡いピンク/青)
-            { progress: 0.35, colors: parseGradientColors("linear-gradient(to bottom, #87CEEB, #ADD8E6)") }, // 朝/日中
-            { progress: 0.5, colors: parseGradientColors("linear-gradient(to bottom, #87CEEB, #ADD8E6)") }, // 日中 (朝と同じで平坦化)
-            { progress: 0.65, colors: parseGradientColors("linear-gradient(to bottom, #FFD700, #FFA500)") }, // 午後遅く/日没開始 (暖かい色)
-            { progress: 0.75, colors: parseGradientColors("linear-gradient(to bottom, #FF8C00, #4682B4)") }, // 日没/夕暮れ (オレンジからスチールブルー)
-            { progress: 0.9, colors: parseGradientColors("linear-gradient(to bottom, #0A0A20, #000005)") }, // 早い夜 (暗くなる)
-            { progress: 1.0, colors: parseGradientColors("linear-gradient(to bottom, #000000, #0a0a20)") }  // サイクルの終わり (真夜中と同じ)
+            { progress: 0.0, colors: parseGradientColors("linear-gradient(to bottom, #000000, #0a0a20)") },
+            { progress: 0.1, colors: parseGradientColors("linear-gradient(to bottom, #2c0b40, #5c2070)") },
+            { progress: 0.2, colors: parseGradientColors("linear-gradient(to bottom, #FFC0CB, #87CEEB)") },
+            { progress: 0.35, colors: parseGradientColors("linear-gradient(to bottom, #87CEEB, #ADD8E6)") },
+            { progress: 0.5, colors: parseGradientColors("linear-gradient(to bottom, #87CEEB, #ADD8E6)") },
+            { progress: 0.65, colors: parseGradientColors("linear-gradient(to bottom, #FFD700, #FFA500)") },
+            { progress: 0.75, colors: parseGradientColors("linear-gradient(to bottom, #FF8C00, #4682B4)") },
+            { progress: 0.9, colors: parseGradientColors("linear-gradient(to bottom, #0A0A20, #000005)") },
+            { progress: 1.0, colors: parseGradientColors("linear-gradient(to bottom, #000000, #0a0a20)") }
         ];
 
-        const totalCycleDuration = 60000; // 昼夜サイクルの合計期間 (ミリ秒) (60秒)
-        let startTime = null;
+        // --- 雲の生成 (Canvas) ---
+        const clouds = [];
+
+        // 雲オブジェクトのコンストラクタ
+        class Cloud {
+            constructor() {
+                this.reset();
+            }
+
+            // 雲のプロパティをリセットまたは初期化
+            reset() {
+                this.width = Math.random() * 200 + 150;
+                this.height = this.width * (Math.random() * 0.15 + 0.25);
+                this.x = Math.random() * elements.cloudCanvas.width * 1.5 - elements.cloudCanvas.width * 0.5;
+                this.y = Math.random() * elements.cloudCanvas.height * 0.3;
+                this.speed = Math.random() * 0.7 + 0.3;
+                this.baseOpacity = Math.random() * 0.2 + 0.7;
+
+                this.blobs = [];
+                const numBlobs = Math.floor(Math.random() * 5) + 6;
+                for (let i = 0; i < numBlobs; i++) {
+                    const blobRadius = (Math.random() * 0.2 + 0.3) * this.height;
+                    const blobX = (Math.random() - 0.5) * this.width * 0.8;
+                    const blobY = (Math.random() - 0.5) * this.height * 0.8;
+                    this.blobs.push({ x: blobX, y: blobY, radius: blobRadius });
+                }
+            }
+
+            // 雲の位置を更新
+            update() {
+                this.x += this.speed;
+                if (this.x > elements.cloudCanvas.width + this.width) {
+                    this.reset(); // 画面を越えたらリセット
+                    this.x = -this.width; // 画面左端に再配置
+                }
+            }
+
+            // キャンバスに雲を描画
+            draw(context, overallCloudOpacity) {
+                context.save();
+                context.globalAlpha = this.baseOpacity * Math.max(0.1, overallCloudOpacity);
+                context.filter = 'blur(15px)';
+
+                const gradient = context.createRadialGradient(
+                    this.x + this.width / 2, this.y + this.height / 2, this.height * 0.1,
+                    this.x + this.width / 2, this.y + this.height / 2, this.height * 0.8
+                );
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                gradient.addColorStop(0.5, 'rgba(240, 240, 240, 0.8)');
+                gradient.addColorStop(1, 'rgba(210, 210, 210, 0.6)');
+                context.fillStyle = gradient;
+
+                this.blobs.forEach(blob => {
+                    context.beginPath();
+                    context.arc(this.x + this.width / 2 + blob.x, this.y + this.height / 2 + blob.y, blob.radius, 0, Math.PI * 2);
+                    context.fill();
+                });
+
+                context.filter = 'none';
+                context.shadowColor = 'rgba(0, 0, 0, 0.2)';
+                context.shadowBlur = 30;
+                context.shadowOffsetX = 15;
+                context.shadowOffsetY = 15;
+                context.restore();
+            }
+        }
+
+        // きらめく星を作成する関数
+        const createStar = () => {
+            const star = document.createElement('div');
+            star.className = 'star';
+            const size = Math.random() * 3 + 1;
+            star.style.width = `${size}px`;
+            star.style.height = `${size}px`;
+            star.style.left = `${Math.random() * 100}%`;
+            star.style.top = `${Math.random() * 100}%`;
+            star.style.animationDelay = `${Math.random() * 4}s`;
+            elements.starContainer.appendChild(star);
+        };
+
+        // 流れ星を作成する関数
+        const createShootingStar = () => {
+            const shootingStar = document.createElement('div');
+            shootingStar.className = 'shooting-star';
+            shootingStar.style.left = `${Math.random() * 100}%`;
+            shootingStar.style.top = `${Math.random() * 100}%`;
+            shootingStar.style.animationDelay = `${Math.random() * 8}s`;
+            shootingStar.style.animationDuration = `${Math.random() * 5 + 5}s`;
+            elements.starContainer.appendChild(shootingStar);
+        };
+
+        // 個々の雨粒を作成する関数
+        const createRaindrop = () => {
+            const raindrop = document.createElement('div');
+            raindrop.className = 'raindrop';
+            const size = Math.random() * 2 + 1;
+            const height = Math.random() * 10 + 5;
+            raindrop.style.width = `${size}px`;
+            raindrop.style.height = `${height}px`;
+            raindrop.style.left = `${Math.random() * 100}%`;
+            raindrop.style.animationDuration = `${Math.random() * 0.8 + 0.4}s`;
+            raindrop.style.animationDelay = `${Math.random() * 3}s`;
+            elements.rainContainer.appendChild(raindrop);
+        };
+
+        // すべての要素の初期化
+        const init = () => {
+            setupCanvas();
+
+            for (let i = 0; i < NUM_CLOUDS; i++) {
+                clouds.push(new Cloud());
+            }
+            for (let i = 0; i < NUM_STARS; i++) {
+                createStar();
+            }
+            for (let i = 0; i < NUM_SHOOTING_STARS; i++) {
+                createShootingStar();
+            }
+            for (let i = 0; i < NUM_RAINDROPS; i++) {
+                createRaindrop();
+            }
+        };
 
         // メインアニメーションループ
         const animateCycle = (currentTime) => {
             if (!startTime) startTime = currentTime;
             const elapsedTime = currentTime - startTime;
-            const globalProgress = (elapsedTime % totalCycleDuration) / totalCycleDuration; // 0から1、継続的にループ
+            const globalProgress = (elapsedTime % TOTAL_CYCLE_DURATION) / TOTAL_CYCLE_DURATION;
 
-            // --- 太陽と月の位置と不透明度 ---
-            const sunArcStartGlobal = 0.15; // 太陽が弧を開始するグローバル進行度 (早朝)
-            const sunArcEndGlobal = 0.85;   // 太陽が弧を終えるグローバル進行度 (夜遅く)
-            const moonArcStartGlobal = 0.65; // 月が弧を開始するグローバル進行度 (夕暮れ)
-            const moonArcEndGlobal = 0.25;   // 月が弧を終えるグローバル進行度 (翌朝)
+            // 太陽と月の位置と不透明度
+            const sunArcStartGlobal = 0.15;
+            const sunArcEndGlobal = 0.85;
+            const moonArcStartGlobal = 0.65;
+            const moonArcEndGlobal = 0.25;
 
-            // 太陽の位置と不透明度を計算
-            let sunArcProgress = 0; // 太陽の弧に沿った進行度 (0から1)
+            // 太陽の計算
+            let sunArcProgress = 0;
             let sunOpacity = 0;
             if (globalProgress >= sunArcStartGlobal && globalProgress <= sunArcEndGlobal) {
                 sunArcProgress = (globalProgress - sunArcStartGlobal) / (sunArcEndGlobal - sunArcStartGlobal);
-                
-                const fadeDurationRatio = 0.15; // 弧のどれくらいの期間をフェードイン/アウトに費やすか
+                const fadeDurationRatio = 0.15;
                 if (sunArcProgress < fadeDurationRatio) {
-                    sunOpacity = sunArcProgress / fadeDurationRatio; // フェードイン
+                    sunOpacity = sunArcProgress / fadeDurationRatio;
                 } else if (sunArcProgress > (1 - fadeDurationRatio)) {
-                    sunOpacity = (1 - sunArcProgress) / fadeDurationRatio; // フェードアウト
+                    sunOpacity = (1 - sunArcProgress) / fadeDurationRatio;
                 } else {
-                    sunOpacity = 1; // 完全に表示
+                    sunOpacity = 1;
                 }
             }
             const sunPos = getArcPosition(sunArcProgress);
-            sun.style.left = `${sunPos.x}%`;
-            sun.style.top = `${sunPos.y}%`;
-            sun.style.opacity = Math.max(0, Math.min(1, sunOpacity)); // 不透明度をクランプ
+            elements.sun.style.left = `${sunPos.x}%`;
+            elements.sun.style.top = `${sunPos.y}%`;
+            elements.sun.style.opacity = Math.max(0, Math.min(1, sunOpacity));
 
-            // 月の位置と不透明度を計算
-            let moonArcProgress = 0; // 月の弧に沿った進行度 (0から1)
+            // 月の計算
+            let moonArcProgress = 0;
             let moonOpacity = 0;
             if (globalProgress >= moonArcStartGlobal || globalProgress < moonArcEndGlobal) {
                 if (globalProgress >= moonArcStartGlobal) {
                     moonArcProgress = (globalProgress - moonArcStartGlobal) / (1.0 - moonArcStartGlobal + moonArcEndGlobal);
-                } else { // globalProgress < moonArcEndGlobal
+                } else {
                     moonArcProgress = (globalProgress + (1.0 - moonArcStartGlobal)) / (1.0 - moonArcStartGlobal + moonArcEndGlobal);
                 }
-                
-                const fadeDurationRatio = 0.15; // 弧のどれくらいの期間をフェードイン/アウトに費やすか
+                const fadeDurationRatio = 0.15;
                 if (moonArcProgress < fadeDurationRatio) {
-                    moonOpacity = moonArcProgress / fadeDurationRatio; // フェードイン
+                    moonOpacity = moonArcProgress / fadeDurationRatio;
                 } else if (moonArcProgress > (1 - fadeDurationRatio)) {
-                    moonOpacity = (1 - moonArcProgress) / fadeDurationRatio; // フェードアウト
+                    moonOpacity = (1 - moonArcProgress) / fadeDurationRatio;
                 } else {
-                    moonOpacity = 1; // 完全に表示
+                    moonOpacity = 1;
                 }
             }
             const moonPos = getArcPosition(moonArcProgress);
-            moon.style.left = `${moonPos.x}%`;
-            moon.style.top = `${moonPos.y}%`;
-            moon.style.opacity = Math.max(0, Math.min(1, moonOpacity)); // 不透明度をクランプ
+            elements.moon.style.left = `${moonPos.x}%`;
+            elements.moon.style.top = `${moonPos.y}%`;
+            elements.moon.style.opacity = Math.max(0, Math.min(1, moonOpacity));
 
-            // --- 星の不透明度 ---
+            // 星の不透明度
             let currentStarsBaseOpacity;
-            const starFadeInStart = 0.75; // 夕暮れ後、星がフェードインを開始
-            const starFullVisibleStart = 0.85; // 完全に星が見える開始点
-            const starFullVisibleEnd = 0.15; // 完全に星が見える終了点 (ラップアラウンド)
-            const starFadeOutEnd = 0.25; // 星がフェードアウトを終了する点 (朝)
+            const starFadeInStart = 0.75;
+            const starFullVisibleStart = 0.85;
+            const starFullVisibleEnd = 0.15;
+            const starFadeOutEnd = 0.25;
 
             if (globalProgress >= starFadeInStart || globalProgress < starFadeOutEnd) {
-                if (globalProgress >= starFadeInStart) { // フェードイン段階 (夕暮れから真夜中へ)
+                if (globalProgress >= starFadeInStart) {
                     if (globalProgress < starFullVisibleStart) {
                         currentStarsBaseOpacity = (globalProgress - starFadeInStart) / (starFullVisibleStart - starFadeInStart);
-                    } else { // >= starFullVisibleStart (真夜中方向へ)
+                    } else {
                         currentStarsBaseOpacity = 1;
                     }
-                } else { // globalProgress < starFadeOutEnd (真夜中から朝へ)
-                    if (globalProgress < starFullVisibleEnd) { // 完全に表示される段階 (真夜中後)
+                } else {
+                    if (globalProgress < starFullVisibleEnd) {
                         currentStarsBaseOpacity = 1;
-                    } else { // >= starFullVisibleEnd (朝方向へフェードアウト)
+                    } else {
                         currentStarsBaseOpacity = 1 - (globalProgress - starFullVisibleEnd) / (starFadeOutEnd - starFullVisibleEnd);
                     }
                 }
             } else {
-                currentStarsBaseOpacity = 0; // 日中
+                currentStarsBaseOpacity = 0;
             }
-            currentStarsBaseOpacity = Math.max(0, Math.min(1, currentStarsBaseOpacity)); // クランプ
+            currentStarsBaseOpacity = Math.max(0, Math.min(1, currentStarsBaseOpacity));
 
-            // --- 背景グラデーション ---
+            // 背景グラデーション
             let currentBgKeyframe = 0;
             for (let i = 0; i < bgKeyframes.length - 1; i++) {
                 if (globalProgress >= bgKeyframes[i].progress && globalProgress <= bgKeyframes[i + 1].progress) {
                     currentBgKeyframe = i;
                     break;
                 }
-                // 最後のキーフレームから最初のキーフレームへのラップアラウンドを処理 (例: globalProgress = 0.95, 次は0.0)
                 if (i === bgKeyframes.length - 2 && globalProgress > bgKeyframes[i + 1].progress) {
                     currentBgKeyframe = i + 1;
                 }
@@ -625,26 +603,25 @@
             const endBgKey = bgKeyframes[(currentBgKeyframe + 1) % bgKeyframes.length];
 
             let bgProgressInSegment;
-            if (endBgKey.progress < startBgKey.progress) { // ラップアラウンドの場合 (例: 0.9から0.0)
+            if (endBgKey.progress < startBgKey.progress) {
                 bgProgressInSegment = (globalProgress - startBgKey.progress + 1) % 1 / (1 - startBgKey.progress + endBgKey.progress);
             } else {
                 bgProgressInSegment = (globalProgress - startBgKey.progress) / (endBgKey.progress - startBgKey.progress);
             }
-            bgProgressInSegment = Math.max(0, Math.min(1, bgProgressInSegment)); // 0から1の間にクランプ
+            bgProgressInSegment = Math.max(0, Math.min(1, bgProgressInSegment));
 
             const interpolatedStartColor = interpolateRgb(startBgKey.colors.start, endBgKey.colors.start, bgProgressInSegment);
             const interpolatedEndColor = interpolateRgb(startBgKey.colors.end, endBgKey.colors.end, bgProgressInSegment);
-            background.style.backgroundImage = `linear-gradient(to bottom, ${interpolatedStartColor}, ${interpolatedEndColor})`;
+            elements.background.style.backgroundImage = `linear-gradient(to bottom, ${interpolatedStartColor}, ${interpolatedEndColor})`;
 
-            // --- 天候決定ロジック ---
+            // 天候決定ロジック
             if (currentTime >= nextWeatherDecisionTime) {
-                nextWeatherDecisionTime += weatherDecisionInterval;
+                nextWeatherDecisionTime = currentTime + WEATHER_DECISION_INTERVAL; // 次の決定時間を更新
                 const newWeather = chooseNewWeather();
 
                 if (newWeather !== weatherState) {
                     weatherState = newWeather;
-                    weatherTransitionStartTime = currentTime; // 天候変更の時間を記録
-                    // スムーズな遷移開始のために、最後にレンダリングされた不透明度をキャプチャ
+                    weatherTransitionStartTime = currentTime;
                     initialCloudOpacity = lastRenderedCloudOpacity;
                     initialRainOpacity = lastRenderedRainOpacity;
 
@@ -652,51 +629,44 @@
                         targetCloudOpacity = 1;
                         targetRainOpacity = 0;
                     } else if (weatherState === 'rainy') {
-                        targetCloudOpacity = 1; // 雨には常に雲
+                        targetCloudOpacity = 1;
                         targetRainOpacity = 1;
                     } else { // 'clear'
-                        // 晴天時のtargetCloudOpacityを高く設定し、視認性を確保するように変更
-                        targetCloudOpacity = 0.5; // 雲の密度を薄くするが、はっきりと見えるようにする
+                        targetCloudOpacity = 0.5;
                         targetRainOpacity = 0;
                     }
                 }
             }
             
-            // --- 天候遷移アニメーション ---
-            const transitionProgress = Math.min(1, (currentTime - weatherTransitionStartTime) / weatherTransitionDuration);
+            // 天候遷移アニメーション
+            const transitionProgress = Math.min(1, (currentTime - weatherTransitionStartTime) / WEATHER_TRANSITION_DURATION);
 
             const currentCloudOpacity = initialCloudOpacity + (targetCloudOpacity - initialCloudOpacity) * transitionProgress;
             const currentRainOpacity = initialRainOpacity + (targetRainOpacity - initialRainOpacity) * transitionProgress;
 
-            // 次のフレーム/遷移のために最後にレンダリングされた不透明度を更新
             lastRenderedCloudOpacity = currentCloudOpacity;
             lastRenderedRainOpacity = currentRainOpacity;
 
-            // 雲を描画するためにキャンバスをクリア
-            ctx.clearRect(0, 0, cloudCanvas.width, cloudCanvas.height);
-            // 雲を更新して描画
+            elements.ctx.clearRect(0, 0, elements.cloudCanvas.width, elements.cloudCanvas.height);
             clouds.forEach(cloud => {
                 cloud.update();
-                cloud.draw(ctx, currentCloudOpacity); // ブレンドのためにcurrentCloudOpacityを渡す
+                cloud.draw(elements.ctx, currentCloudOpacity);
             });
 
-            // rainContainerは引き続きstyle.opacityを使用しているため、問題ないはず
-            rainContainer.style.opacity = `${currentRainOpacity}`;
+            elements.rainContainer.style.opacity = `${currentRainOpacity}`;
 
-            // 天候に基づいて星の不透明度を調整 (天候要素が見える場合は星がフェードアウト)
-            // 雲越しでも星は見えるが、不透明度は減少する
-            const cloudImpactFactor = 0.7; // 雲や雨の際の星の透明度の減少量 (0.7は元の透明度の30%が見えることを意味する)
-            const weatherCoverOpacity = Math.max(currentCloudOpacity, currentRainOpacity); // 雲または雨の最大不透明度
-            starContainer.style.opacity = Math.max(0, Math.min(1, currentStarsBaseOpacity * (1 - weatherCoverOpacity * (1 - cloudImpactFactor))));
+            const cloudImpactFactor = 0.7;
+            const weatherCoverOpacity = Math.max(currentCloudOpacity, currentRainOpacity);
+            elements.starContainer.style.opacity = Math.max(0, Math.min(1, currentStarsBaseOpacity * (1 - weatherCoverOpacity * (1 - cloudImpactFactor))));
 
             animationFrameId = requestAnimationFrame(animateCycle);
         };
 
-        // window.onloadでアニメーションループを開始
-        window.onload = function () {
-            // アニメーションをウィンドウロード時に開始
-            animationFrameId = requestAnimationFrame(animateCycle);
-        }
+        // Window onload event
+        window.onload = () => {
+            init(); // Initialize all elements and setup canvas
+            animationFrameId = requestAnimationFrame(animateCycle); // Start the animation loop
+        };
     </script>
 </body>
 </html>
