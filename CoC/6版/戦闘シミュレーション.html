@@ -282,12 +282,10 @@
                         <label for="global-new-skill-damage" class="text-gray-700 font-medium">初期ダメージ:</label>
                         <input type="text" id="global-new-skill-damage" class="stat-input-text w-full" value="1d3" placeholder="例: 1d6, 2d4+2">
                     </div>
-                    <!-- 修正箇所: ここから -->
                     <div class="flex items-center justify-start gap-1 mb-4">
                         <input type="checkbox" id="global-new-skill-applies-db" class="form-checkbox h-4 w-4 text-blue-600 rounded" checked>
                         <label for="global-new-skill-applies-db" class="text-gray-700 font-medium whitespace-nowrap">DB適応</label>
                     </div>
-                    <!-- 修正箇所: ここまで -->
                     <button id="add-global-custom-skill-btn" class="button button-secondary w-full md:w-auto">新しい技能を追加</button>
                 </div>
 
@@ -909,15 +907,25 @@
                 }
 
                 // デフォルトの技能定義をベースに、ロードしたデータをマージ
-                // ロードしたデータで、既存のスキル情報（damage, appliesDB, value, deletable）を上書きする
                 attackSkillDefinitions = { ...defaultAttackSkillDefinitions }; // まずデフォルトをコピー
+
                 for (const skillName in loadedSkills) {
-                    // ロードしたスキルがデフォルトにある場合、そのプロパティを上書き
-                    // ロードしたスキルが新しいカスタムスキルの場合も追加
-                    attackSkillDefinitions[skillName] = { 
-                        ...attackSkillDefinitions[skillName], // 既存のプロパティを保持 (特にdeletableなど)
-                        ...loadedSkills[skillName] // ロードした値で上書き
-                    };
+                    const loadedSkillDef = loadedSkills[skillName];
+                    const defaultSkillDef = defaultAttackSkillDefinitions[skillName];
+
+                    if (defaultSkillDef && defaultSkillDef.deletable === true) {
+                        // デフォルトで削除可能なスキル（こぶし、キックなど）の場合、deletable は常に true にする
+                        // これにより、古いセーブデータでdeletableがfalseになっていても強制的にtrueになる
+                        attackSkillDefinitions[skillName] = {
+                            ...loadedSkillDef, // ロードした値をベースにする
+                            deletable: true, // ただし、deletable は常に true
+                            // デフォルト値からコピーされていない値も保持する (e.g., special)
+                            ...(defaultSkillDef || {}) // デフォルトスキル定義の残りのプロパティをマージ (念のため)
+                        };
+                    } else {
+                        // カスタム追加されたスキルや、デフォルトでdeletable: falseのスキルはそのままロード
+                        attackSkillDefinitions[skillName] = { ...loadedSkillDef };
+                    }
                 }
                 renderGlobalSkillSettings();
 
@@ -1076,7 +1084,7 @@
                             <label for="global-applies-db-${skillName}" class="text-gray-700 text-sm whitespace-nowrap cursor-pointer">DB適応</label>
                         </div>
                         ${skillDef.deletable ? `
-                            <button class="global-remove-skill-btn button button-danger px-2 py-1 text-xs">削除</button>
+                            <button class="global-remove-skill-btn button button-danger px-2 py-1 text-xs" data-skill-name="${skillName}">削除</button>
                         ` : ''}
                     </div>
                 `;
@@ -1379,26 +1387,31 @@
          * @param {string} skillName - 削除する技能名
          */
         function removeGlobalSkill(skillName) {
+            console.log(`removeGlobalSkill: Attempting to remove skill: ${skillName}`);
             // ユーザーからの要望により、「こぶし」「キック」も削除可能になったため、このチェックは残すが、
             // 将来的に削除不可の技能を追加する可能性のため、ロジックは残す。
             if (attackSkillDefinitions[skillName] && attackSkillDefinitions[skillName].deletable === false) {
                 logMessage(`「${skillName}」は基本技能のため、共通設定から削除できません。`, 'warning');
+                console.warn(`Attempted to delete non-deletable skill: ${skillName}`);
                 return;
             }
 
             if (!attackSkillDefinitions[skillName]) {
                 logMessage(`技能「${skillName}」は存在しません。`, 'error');
+                console.error(`Skill definition not found for: ${skillName}`);
                 return;
             }
 
             delete attackSkillDefinitions[skillName];
             logMessage(`共通設定から技能「${skillName}」を削除しました。`, 'success');
+            console.log(`Skill ${skillName} deleted from global definitions. Current definitions:`, attackSkillDefinitions);
 
             // 削除された技能を全てのキャラクターから削除する
             // 各キャラクターの攻撃技能リストから、削除されたグローバル技能を削除
             [...players, ...npcs].forEach(char => {
                 if (char.attackSkills[skillName]) {
                     delete char.attackSkills[skillName];
+                    console.log(`Removed ${skillName} from ${char.name}'s skills.`);
                 }
             });
 
@@ -2046,7 +2059,7 @@
          * @param {Character[]} currentPlayers - 現在のプレイヤーキャラクターの配列 (クローン済み)
          * @param {Character[]} currentNpcs - 現在のNPCキャラクターの配列 (クローン済み)
          * @param {boolean} isBatchSim - バッチシミュレーション中かどうか (ログ出力を制御するため)
-         * @returns {'playerWin'|'npcWin'} 戦闘結果
+         * @returns {'playerWin'|'npcWin'|'noCombat'} 戦闘結果
          */
         function simulateSingleCombat(currentPlayers, currentNpcs, isBatchSim = false) {
             let turn = 1;
@@ -2077,6 +2090,8 @@
                     return b.initiativeRoll - a.initiativeRoll;
                 });
 
+                let anyCharacterCanAttackThisTurn = false; // 今ターン誰かが攻撃できるかどうかのフラグ
+
                 for (const attacker of allCharacters) {
                     if (!attacker.isAlive) continue; // 既に戦闘不能の場合、行動しない
                     if (attacker.isGrappled) { // 組みつき状態の場合、攻撃行動をスキップ
@@ -2090,6 +2105,8 @@
                     if (!hasActiveSkills) {
                         if (!isBatchSim) logMessage(`${attacker.name}は攻撃できる技能がないため、攻撃行動をスキップしました。（ただし、他の攻撃に対しては回避可能です）`, 'warning');
                         continue; // 次のキャラクターへ
+                    } else {
+                        anyCharacterCanAttackThisTurn = true; // 少なくともこのキャラクターは攻撃できる
                     }
 
                     let targetPool = attacker.isPlayer ? currentNpcs.filter(n => n.isAlive) : currentPlayers.filter(p => p.isAlive);
@@ -2111,6 +2128,12 @@
                     }
                 }
 
+                // 全員が攻撃できなかった場合、戦闘を終了
+                if (!anyCharacterCanAttackThisTurn && turn > 1) { // 最初のターンで誰も攻撃できない場合は既に判定済みなので、2ターン目以降で攻撃行動が発生しなくなった場合
+                    if (!isBatchSim) logMessage('<span class="text-yellow-600 font-bold">全てのキャラクターが攻撃可能な技能を持っていない、または行動不能なため、戦闘は終了しました。</span>', 'warning');
+                    return 'noCombat'; // 勝敗なしで終了
+                }
+
                 turn++;
                 // 戦闘終了条件のチェック
                 if (!currentPlayers.some(p => p.isAlive) || !currentNpcs.some(n => n.isAlive)) {
@@ -2124,8 +2147,14 @@
 
             if (playersRemain && !npcsRemain) {
                 return 'playerWin';
-            } else { // プレイヤー全滅 or 両方全滅（NPC勝利）
+            } else if (!playersRemain && npcsRemain) {
                 return 'npcWin';
+            } else if (!playersRemain && !npcsRemain) {
+                // 両方全滅した場合もNPC勝利として扱う (CoCの慣習)
+                return 'npcWin';
+            } else {
+                // ここには到達しないはずだが、念のため
+                return 'noCombat';
             }
         }
 
@@ -2151,8 +2180,32 @@
             importDataBtn.disabled = true;
 
 
-            // 戦闘開始前に、有効な攻撃技能を持つキャラクターが一人もいない場合は警告を出す
             const allPlayableCharacters = [...players, ...npcs];
+            
+            // 全てのキャラクターが攻撃技能を持っていない場合のチェックをここに追加
+            const allCharactersHaveNoActiveSkills = allPlayableCharacters.every(char => {
+                return Object.keys(char.attackSkills).every(skillName => !char.attackSkills[skillName].enabled);
+            });
+
+            if (allCharactersHaveNoActiveSkills) {
+                logMessage('<span class="text-yellow-600 font-bold">戦闘可能な技能を持つキャラクターがいないため、戦闘は行われませんでした。</span>', 'warning');
+                // ボタンを再有効化
+                startCombatBtn.disabled = false;
+                runBatchSimBtn.disabled = false;
+                addPlayerBtn.disabled = false;
+                addNpcBtn.disabled = false;
+                document.querySelectorAll('.stat-input, .stat-input-text, .skill-enabled-checkbox, .multiple-dodges-checkbox, .remove-char-btn, .randomize-stats-btn, .duplicate-char-btn, .add-skill-to-char-btn, .remove-skill-btn, .toggle-stats-display-btn').forEach(btn => btn.disabled = false);
+                document.querySelectorAll('select[id^="add-skill-select-"]').forEach(select => select.disabled = false);
+                document.querySelectorAll('.global-skill-damage-input, .global-skill-applies-db-checkbox, .global-skill-value-input, .global-remove-skill-btn, #add-global-custom-skill-btn, #global-new-skill-name, #global-new-skill-value, #global-new-skill-damage, #global-new-skill-applies-db').forEach(input => input.disabled = false);
+                exportDataBtn.disabled = false;
+                importDataBtn.disabled = false;
+                updateRemoveButtons();
+                updateAllCharacterDisplays();
+                return; // シミュレーションを終了
+            }
+
+
+            // 個別に攻撃技能がないキャラクターへの警告は残す
             const charactersWithoutActiveSkills = allPlayableCharacters.filter(char => {
                 return Object.keys(char.attackSkills).every(skillName => !char.attackSkills[skillName].enabled);
             });
@@ -2170,6 +2223,7 @@
                 const numSimulations = 1000;
                 let playerWins = 0;
                 let npcWins = 0;
+                let noCombatCount = 0; // 新しいカウンター
 
                 logMessage('結果を計算中...', 'info');
 
@@ -2189,18 +2243,22 @@
                     const result = simulateSingleCombat(clonedPlayers, clonedNpcs, true); // trueでバッチシミュレーションと伝える
                     if (result === 'playerWin') {
                         playerWins++;
-                    } else {
+                    } else if (result === 'npcWin') {
                         npcWins++;
+                    } else if (result === 'noCombat') {
+                        noCombatCount++;
                     }
                 }
 
                 const playerWinRate = (playerWins / numSimulations * 100).toFixed(2);
                 const npcWinRate = (npcWins / numSimulations * 100).toFixed(2);
+                const noCombatRate = (noCombatCount / numSimulations * 100).toFixed(2);
 
                 logMessage('<hr class="my-4 border-gray-300">');
                 logMessage('<span class="text-blue-700 font-bold">1000回シミュレーション結果:</span>', 'success');
                 logMessage(`プレイヤー側の勝利: ${playerWins}回 (${playerWinRate}%)`);
                 logMessage(`NPC側の勝利: ${npcWins}回 (${npcWinRate}%)`);
+                logMessage(`戦闘なし: ${noCombatCount}回 (${noCombatRate}%)`); // 結果を追加
                 logMessage('<span class="text-blue-700 font-bold">シミュレーション終了！</span>');
 
             } else {
@@ -2225,9 +2283,12 @@
                 if (result === 'playerWin') {
                     resultMessage = 'プレイヤー側の勝利です！';
                     logMessage('<span class="text-green-700 font-bold">プレイヤー側の勝利です！</span>', 'success');
-                } else {
+                } else if (result === 'npcWin') {
                     resultMessage = 'NPC側の勝利です！';
                     logMessage('<span class="text-red-700 font-bold">NPC側の勝利です！！</span>', 'error');
+                } else if (result === 'noCombat') {
+                    resultMessage = '戦闘可能な技能を持つキャラクターがいないため、戦闘は行われませんでした。';
+                    logMessage('<span class="text-yellow-600 font-bold">戦闘可能な技能を持つキャラクターがいないため、戦闘は行われませんでした。</span>', 'warning');
                 }
                 logMessage('<span class="text-blue-700 font-bold">戦闘終了！</span>');
             }
