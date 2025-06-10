@@ -530,6 +530,7 @@
                 this.isGrappled = false;        // 組みつき状態フラグ
                 this.initiativeRoll = 0;        // 行動順決定のための乱数 (戦闘開始時に設定)
                 this.hasAttackedThisTurn = false; // そのターンに攻撃したかどうかのフラグ
+                this.statsHidden = false;       // ステータス表示/非表示フラグ
 
                 // キャラクターは有効な攻撃技能のリストを持つ（技能値と有効/無効）
                 this.attackSkills = {};
@@ -552,6 +553,11 @@
                 }
 
                 // グローバル定義の全ての技能について、キャラクターが持っているか確認し、必要なら追加
+                // この部分は、ロード時や新規作成時に、既存のキャラクターがグローバルに追加された技能を
+                // 自動的に「無効状態で」持つようにするためのものです。
+                // Runtimeでグローバル技能を追加した場合、既存のキャラクターが「追加可能な技能」に表示されるべきなので、
+                // その場合はこのロジックをバイパスする必要があります。
+                // そのため、addGlobalCustomSkillBtnでは、この関数を直接呼ばずにupdateCharacterDisplayを呼ぶようにします。
                 for (const skillName in attackSkillDefinitions) {
                     if (!updatedAttackSkills[skillName]) {
                         // 新しく追加された技能はデフォルトで無効、値はグローバル定義から
@@ -603,6 +609,7 @@
                 clonedChar.isGrappled = this.isGrappled;
                 clonedChar.initiativeRoll = this.initiativeRoll; // 乱数もコピー（ただし戦闘ごとに再生成される）
                 clonedChar.hasAttackedThisTurn = this.hasAttackedThisTurn; // 攻撃フラグもコピー
+                clonedChar.statsHidden = this.statsHidden; // ステータス表示フラグもコピー
 
                 // attackSkillsをディープコピー (技能値と有効/無効の状態のみ)
                 for (const skillName in this.attackSkills) {
@@ -651,7 +658,7 @@
                 if (this.stats.HP <= 0) {
                     this.stats.HP = 0; // HPを0に設定
                     this.isAlive = false;
-                    return true; // 死亡
+                    return true; // 死亡 
                 }
                 return false; // 生存
             }
@@ -871,9 +878,13 @@
          */
         function saveDataToLocalStorage() {
             try {
+                // 各キャラクターのstatsHiddenプロパティを保存
+                const playersData = players.map(p => ({ ...p, statsHidden: p.statsHidden }));
+                const npcsData = npcs.map(n => ({ ...n, statsHidden: n.statsHidden }));
+
                 localStorage.setItem('attackSkillDefinitions', JSON.stringify(attackSkillDefinitions));
-                localStorage.setItem('players', JSON.stringify(players));
-                localStorage.setItem('npcs', JSON.stringify(npcs));
+                localStorage.setItem('players', JSON.stringify(playersData));
+                localStorage.setItem('npcs', JSON.stringify(npcsData));
                 localStorage.setItem('playerCharacterCounter', playerCharacterCounter);
                 localStorage.setItem('npcCharacterCounter', npcCharacterCounter);
                 // console.log("データをローカルストレージに保存しました。");
@@ -926,6 +937,7 @@
                         char.isGrappled = data.isGrappled;
                         char.initiativeRoll = data.initiativeRoll;
                         char.hasAttackedThisTurn = data.hasAttackedThisTurn || false; // 新しいプロパティのロード
+                        char.statsHidden = data.statsHidden || false; // statsHidden プロパティをロード、デフォルトはfalse
 
                         // attackSkills も再構築してグローバル定義との整合性を保つ
                         char.attackSkills = {};
@@ -935,7 +947,18 @@
                                 char.attackSkills[skillName] = { ...data.attackSkills[skillName] };
                             }
                         }
-                        char.initializeCharacterAttackSkills(); // グローバル定義から新しく追加されたスキルを追加
+                        // ロード時に、グローバル定義に存在するがキャラクターが持っていない技能を無効状態で追加する
+                        // (addGlobalCustomSkillBtnでの即時追加をなくしたので、ロード時はここで更新する必要がある)
+                        for (const skillName in attackSkillDefinitions) {
+                            if (!char.attackSkills[skillName]) {
+                                char.attackSkills[skillName] = { 
+                                    enabled: false, 
+                                    value: attackSkillDefinitions[skillName].value 
+                                };
+                            }
+                        }
+                        // initializeCharacterAttackSkills() は新規作成時に使われるものなので、ロード時は手動でマージ
+                        // char.initializeCharacterAttackSkills(); // グローバル定義から新しく追加されたスキルを追加
 
                         char.stats.DB = calculateDamageBonus(char.stats.STR * 5, char.stats.SIZ * 5); // DBを再計算
                         return char;
@@ -962,6 +985,7 @@
                         char.isGrappled = data.isGrappled;
                         char.initiativeRoll = data.initiativeRoll;
                         char.hasAttackedThisTurn = data.hasAttackedThisTurn || false; // 新しいプロパティのロード
+                        char.statsHidden = data.statsHidden || false; // statsHidden プロパティをロード、デフォルトはfalse
 
                         // attackSkills も再構築してグローバル定義との整合性を保つ
                         char.attackSkills = {};
@@ -971,7 +995,16 @@
                                 char.attackSkills[skillName] = { ...data.attackSkills[skillName] };
                             }
                         }
-                        char.initializeCharacterAttackSkills(); // グローバル定義から新しく追加されたスキルを追加
+                        // ロード時に、グローバル定義に存在するがキャラクターが持っていない技能を無効状態で追加する
+                        for (const skillName in attackSkillDefinitions) {
+                            if (!char.attackSkills[skillName]) {
+                                char.attackSkills[skillName] = { 
+                                    enabled: false, 
+                                    value: attackSkillDefinitions[skillName].value 
+                                };
+                            }
+                        }
+                        // char.initializeCharacterAttackSkills(); // グローバル定義から新しく追加されたスキルを追加
 
                         char.stats.DB = calculateDamageBonus(char.stats.STR * 5, char.stats.SIZ * 5); // DBを再計算
                         return char;
@@ -1114,7 +1147,13 @@
                         <button class="remove-char-btn button button-danger px-3 py-1 text-sm" data-id="${character.id}" data-type="${character.isPlayer ? 'player' : 'npc'}">削除</button>
                     </div>
                 </div>
-                <div class="character-stats-summary text-gray-600 mb-2 grid grid-cols-2 sm:grid-cols-3 gap-x-2">
+                <div class="flex justify-end mb-2">
+                    <input type="hidden" class="stats-hidden-state" data-id="${character.id}" data-type="${character.isPlayer ? 'player' : 'npc'}" value="${character.statsHidden ? 'true' : 'false'}">
+                    <button class="toggle-stats-display-btn button button-secondary px-3 py-1 text-sm" data-id="${character.id}" data-type="${character.isPlayer ? 'player' : 'npc'}">
+                        ${character.statsHidden ? 'ステータスを表示' : 'ステータスを非表示'}
+                    </button>
+                </div>
+                <div class="character-stats-summary text-gray-600 mb-2 grid grid-cols-2 sm:grid-cols-3 gap-x-2 ${character.statsHidden ? 'hidden' : 'block'}">
                     <span class="flex items-center">HP: <span class="hp-display">${Math.max(0, character.stats.HP)}</span></span>
                     <span class="flex items-center">MP: <span class="mp-display">${character.stats.MP}</span></span>
                     <span class="flex items-center">SAN: <span class="san-display">${character.stats.SAN}</span></span>
@@ -1138,7 +1177,7 @@
                         使用可能技能: <span class="skills-list-display"></span>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 ${character.statsHidden ? 'hidden' : 'block'}">
                     <div class="stat-input-group">
                         <label for="hp-input-${character.id}">HP:</label>
                         <input type="number" min="1" id="hp-input-${character.id}" class="stat-input" data-id="${character.id}" data-type="${character.isPlayer ? 'player' : 'npc'}" data-stat="HP" value="${character.initialStats.HP}">
@@ -1177,7 +1216,7 @@
                     </div>
                 </div>
 
-                <details open class="mt-3 border-t border-gray-200 pt-3">
+                <details open class="mt-3 border-t border-gray-200 pt-3 ${character.statsHidden ? 'hidden' : 'block'}">
                     <summary class="font-semibold text-gray-700 text-sm">攻撃技能設定:</summary>
                     <div class="section-content">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm" id="character-skills-list-${character.id}">
@@ -1352,6 +1391,7 @@
             logMessage(`共通設定から技能「${skillName}」を削除しました。`, 'success');
 
             // 削除された技能を全てのキャラクターから削除する
+            // 各キャラクターの攻撃技能リストから、削除されたグローバル技能を削除
             [...players, ...npcs].forEach(char => {
                 if (char.attackSkills[skillName]) {
                     delete char.attackSkills[skillName];
@@ -1579,14 +1619,10 @@
             renderGlobalSkillSettings();
             saveDataToLocalStorage(); // グローバル技能定義が変更されたらローカルストレージに保存
 
-            // 既存の全てのキャラクターに新しい技能を追加（ただし、自動で有効にはしない）
-            [...players, ...npcs].forEach(char => {
-                if (!char.attackSkills[name]) {
-                    char.attackSkills[name] = { enabled: false, value: value }; // グローバル定義のvalueを使用
-                }
-                updateCharacterDisplay(char); // UIを正確に更新
-            });
-            saveDataToLocalStorage(); // 新しい技能がキャラクターに追加されたら保存
+            // 既存の全てのキャラクターのUIを更新し、新しい技能が「追加可能な技能」に表示されるようにする
+            updateAllCharacterDisplays(); 
+            // NOTE: ここで各キャラクターの attackSkills に直接追加しない。
+            // 追加したい場合は、各キャラクターの「技能を追加」ボタンから明示的に行う。
         });
 
 
@@ -1633,6 +1669,16 @@
             } else if (event.target.classList.contains('global-remove-skill-btn')) { // 共通設定の技能削除ボタン
                 const skillName = event.target.dataset.skillName;
                 removeGlobalSkill(skillName);
+            } else if (event.target.classList.contains('toggle-stats-display-btn')) { // ステータス表示切り替えボタン
+                const charId = event.target.dataset.id;
+                const charType = event.target.dataset.type;
+                const charArray = charType === 'player' ? players : npcs;
+                const charToUpdate = charArray.find(char => char.id === charId);
+                if (charToUpdate) {
+                    charToUpdate.statsHidden = !charToUpdate.statsHidden;
+                    updateCharacterDisplay(charToUpdate);
+                    saveDataToLocalStorage();
+                }
             }
         });
 
@@ -1784,6 +1830,7 @@
                             char.isGrappled = data.isGrappled;
                             char.initiativeRoll = data.initiativeRoll;
                             char.hasAttackedThisTurn = data.hasAttackedThisTurn || false;
+                            char.statsHidden = data.statsHidden || false; // statsHidden プロパティをロード
                             // attackSkillsはそのままコピー
                             char.attackSkills = data.attackSkills;
                             // ロード後にDBを再計算 (STRやSIZが変更されている可能性のため)
@@ -1801,6 +1848,7 @@
                             char.isGrappled = data.isGrappled;
                             char.initiativeRoll = data.initiativeRoll;
                             char.hasAttackedThisTurn = data.hasAttackedThisTurn || false;
+                            char.statsHidden = data.statsHidden || false; // statsHidden プロパティをロード
                             char.attackSkills = data.attackSkills;
                             char.stats.DB = calculateDamageBonus(char.stats.STR * 5, char.stats.SIZ * 5);
                             return char;
@@ -1846,6 +1894,28 @@
                 const nameInput = charCard.querySelector('.character-name');
                 if (nameInput) nameInput.value = character.name;
 
+                // ステータス表示領域と攻撃技能設定領域を取得
+                const statsSummaryDiv = charCard.querySelector('.character-stats-summary');
+                const statsInputsDiv = charCard.querySelector('.grid.grid-cols-2.sm\\:grid-cols-3.gap-2'); // ステータス入力グループ
+                const attackSkillsDetails = charCard.querySelector('details.mt-3.border-t.border-gray-200.pt-3');
+                const toggleButton = charCard.querySelector('.toggle-stats-display-btn');
+                const statsHiddenInput = charCard.querySelector('.stats-hidden-state');
+
+                // ステータス表示/非表示の状態に基づいてクラスを切り替え
+                if (character.statsHidden) {
+                    statsSummaryDiv.classList.add('hidden');
+                    statsInputsDiv.classList.add('hidden');
+                    attackSkillsDetails.classList.add('hidden');
+                    toggleButton.textContent = 'ステータスを表示';
+                    statsHiddenInput.value = 'true';
+                } else {
+                    statsSummaryDiv.classList.remove('hidden');
+                    statsInputsDiv.classList.remove('hidden');
+                    attackSkillsDetails.classList.remove('hidden');
+                    toggleButton.textContent = 'ステータスを非表示';
+                    statsHiddenInput.value = 'false';
+                }
+
                 // 基本ステータスの表示更新
                 // HPは0以下にならないように表示を調整
                 charCard.querySelector('.hp-display').textContent = Math.max(0, character.stats.HP);
@@ -1863,17 +1933,18 @@
 
                 charCard.querySelector(`#multiple-dodges-${character.id}`).checked = character.allowMultipleDodges;
 
-                // 手動設定入力フィールドの更新
-                charCard.querySelector(`#hp-input-${character.id}`).value = character.initialStats.HP;
-                charCard.querySelector(`#dodge-input-${character.id}`).value = character.stats.DODGE;
-                charCard.querySelector(`#dex-input-${character.id}`).value = character.stats.DEX;
-                charCard.querySelector(`#str-input-${character.id}`).value = character.stats.STR;
-                charCard.querySelector(`#con-input-${character.id}`).value = character.stats.CON;
-                charCard.querySelector(`#siz-input-${character.id}`).value = character.stats.SIZ;
-                charCard.querySelector(`#int-input-${character.id}`).value = character.stats.INT;
-                charCard.querySelector(`#pow-input-${character.id}`).value = character.stats.POW;
-                charCard.querySelector(`#edu-input-${character.id}`).value = character.stats.EDU;
-
+                // 手動設定入力フィールドの更新 (表示されている場合のみ)
+                if (!character.statsHidden) {
+                    charCard.querySelector(`#hp-input-${character.id}`).value = character.initialStats.HP;
+                    charCard.querySelector(`#dodge-input-${character.id}`).value = character.stats.DODGE;
+                    charCard.querySelector(`#dex-input-${character.id}`).value = character.stats.DEX;
+                    charCard.querySelector(`#str-input-${character.id}`).value = character.stats.STR;
+                    charCard.querySelector(`#con-input-${character.id}`).value = character.stats.CON;
+                    charCard.querySelector(`#siz-input-${character.id}`).value = character.stats.SIZ;
+                    charCard.querySelector(`#int-input-${character.id}`).value = character.stats.INT;
+                    charCard.querySelector(`#pow-input-${character.id}`).value = character.stats.POW;
+                    charCard.querySelector(`#edu-input-${character.id}`).value = character.stats.EDU;
+                }
 
                 // 有効な技能のサマリー表示を更新
                 const activeSkillsNames = Object.keys(character.attackSkills)
@@ -1923,6 +1994,7 @@
                 const addSkillSelect = charCard.querySelector(`#add-skill-select-${character.id}`);
                 const addSkillButton = charCard.querySelector(`.add-skill-to-char-btn`);
                 if (addSkillSelect && addSkillButton) {
+                    // グローバル定義に存在し、かつキャラクターがまだ持っていない技能のみをフィルタリング
                     const availableSkills = Object.keys(attackSkillDefinitions)
                         .filter(skillName => !character.attackSkills[skillName])
                         .sort();
@@ -1946,11 +2018,15 @@
                     charCard.querySelector(`#add-skill-select-${character.id}`).disabled = true;
                     charCard.classList.add('opacity-50', 'bg-gray-300', 'line-through');
                     charCard.querySelector('.character-name').classList.add('text-gray-500');
+                    // ステータス表示切り替えボタンも無効化
+                    toggleButton.disabled = true;
                 } else {
                     charCard.classList.remove('opacity-50', 'bg-gray-300', 'line-through');
                     charCard.querySelector('.character-name').classList.remove('text-gray-500');
                     charCard.querySelectorAll('.stat-input, .stat-input-text, .skill-enabled-checkbox, .multiple-dodges-checkbox, .remove-char-btn, .randomize-stats-btn, .duplicate-char-btn, .add-skill-to-char-btn, .remove-skill-btn').forEach(input => input.disabled = false);
                     charCard.querySelector(`#add-skill-select-${character.id}`).disabled = false;
+                    // ステータス表示切り替えボタンを有効化
+                    toggleButton.disabled = false;
                 }
             }
         }
@@ -2062,7 +2138,7 @@
             runBatchSimBtn.disabled = true;
             addPlayerBtn.disabled = true;
             addNpcBtn.disabled = true;
-            document.querySelectorAll('.stat-input, .stat-input-text, .skill-enabled-checkbox, .multiple-dodges-checkbox, .remove-char-btn, .randomize-stats-btn, .duplicate-char-btn, .add-skill-to-char-btn, .remove-skill-btn').forEach(btn => btn.disabled = true);
+            document.querySelectorAll('.stat-input, .stat-input-text, .skill-enabled-checkbox, .multiple-dodges-checkbox, .remove-char-btn, .randomize-stats-btn, .duplicate-char-btn, .add-skill-to-char-btn, .remove-skill-btn, .toggle-stats-display-btn').forEach(btn => btn.disabled = true);
             document.querySelectorAll('select[id^="add-skill-select-"]').forEach(select => select.disabled = true); // 追加ドロップダウンも無効化
             // 共通設定UIも無効化
             document.querySelectorAll('.global-skill-damage-input, .global-skill-applies-db-checkbox, .global-skill-value-input, .global-remove-skill-btn, #add-global-custom-skill-btn, #global-new-skill-name, #global-new-skill-value, #global-new-skill-damage, #global-new-skill-applies-db').forEach(input => input.disabled = true);
@@ -2157,7 +2233,7 @@
             runBatchSimBtn.disabled = false;
             addPlayerBtn.disabled = false;
             addNpcBtn.disabled = false;
-            document.querySelectorAll('.stat-input, .stat-input-text, .skill-enabled-checkbox, .multiple-dodges-checkbox, .remove-char-btn, .randomize-stats-btn, .duplicate-char-btn, .add-skill-to-char-btn, .remove-skill-btn').forEach(btn => btn.disabled = false);
+            document.querySelectorAll('.stat-input, .stat-input-text, .skill-enabled-checkbox, .multiple-dodges-checkbox, .remove-char-btn, .randomize-stats-btn, .duplicate-char-btn, .add-skill-to-char-btn, .remove-skill-btn, .toggle-stats-display-btn').forEach(btn => btn.disabled = false);
             document.querySelectorAll('select[id^="add-skill-select-"]').forEach(select => select.disabled = false); // 追加ドロップダウンも有効化
             // 共通設定UIも有効化
             document.querySelectorAll('.global-skill-damage-input, .global-skill-applies-db-checkbox, .global-skill-value-input, .global-remove-skill-btn, #add-global-custom-skill-btn, #global-new-skill-name, #global-new-skill-value, #global-new-skill-damage, #global-new-skill-applies-db').forEach(input => input.disabled = false);
@@ -2209,7 +2285,7 @@
             addPlayerBtn.disabled = false;
             addNpcBtn.disabled = false;
             // 全ての入力フィールドと削除ボタンを有効化
-            document.querySelectorAll('.stat-input, .stat-input-text, .skill-enabled-checkbox, .multiple-dodges-checkbox, .remove-char-btn, .randomize-stats-btn, .duplicate-char-btn, .add-skill-to-char-btn, .remove-skill-btn').forEach(btn => btn.disabled = false);
+            document.querySelectorAll('.stat-input, .stat-input-text, .skill-enabled-checkbox, .multiple-dodges-checkbox, .remove-char-btn, .randomize-stats-btn, .duplicate-char-btn, .add-skill-to-char-btn, .remove-skill-btn, .toggle-stats-display-btn').forEach(btn => btn.disabled = false);
             document.querySelectorAll('select[id^="add-skill-select-"]').forEach(select => select.disabled = false); // 追加ドロップダウンも有効化
             // 共通設定UIも有効化
             document.querySelectorAll('.global-skill-damage-input, .global-skill-applies-db-checkbox, .global-skill-value-input, .global-remove-skill-btn, #add-global-custom-skill-btn, #global-new-skill-name, #global-new-skill-value, #global-new-skill-damage, #global-new-skill-applies-db').forEach(input => input.disabled = false);
