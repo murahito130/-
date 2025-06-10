@@ -325,6 +325,19 @@
             <button id="restart-button" class="button button-secondary w-full md:w-auto text-lg py-3 px-8 shadow-md hover:shadow-lg transform hover:scale-105">最初からやり直す</button>
         </div>
 
+        <!-- データ管理セクションの追加 -->
+        <details class="mb-8 p-6 bg-gray-50 rounded-xl shadow-inner" id="data-management-details">
+            <summary class="section-title text-gray-700">データ管理</summary>
+            <div class="section-content flex flex-col gap-4">
+                <p class="text-gray-600">現在の設定（共通技能、プレイヤー、NPC）をJSONファイルとしてエクスポートしたり、以前保存した設定をインポートしたりできます。</p>
+                <div class="flex flex-wrap gap-4 justify-center">
+                    <button id="export-data-btn" class="button button-secondary w-full md:w-auto text-lg py-3 px-8 shadow-md hover:shadow-lg transform hover:scale-105">設定をエクスポート</button>
+                    <input type="file" id="import-file-input" accept=".json" class="hidden">
+                    <button id="import-data-btn" class="button button-secondary w-full md:w-auto text-lg py-3 px-8 shadow-md hover:shadow-lg transform hover:scale-105">設定をインポート</button>
+                </div>
+            </div>
+        </details>
+
         <div class="mb-8">
             <h2 class="section-title text-gray-700">戦闘ログ</h2>
             <div id="combat-log" class="log-area h-64 overflow-y-auto">
@@ -341,6 +354,7 @@
         // (このシミュレーションではFirestoreは直接使用しないため、関連コードはコメントアウトされています)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-cthulhu-app';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        // initialAuthToken の初期化で ReferenceError が発生していたのを修正
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
 
         // 攻撃技能のプリセット (グローバルな技能定義)
@@ -377,6 +391,31 @@
         const globalNewSkillAppliesDbCheckbox = document.getElementById('global-new-skill-applies-db');
         const addGlobalCustomSkillBtn = document.getElementById('add-global-custom-skill-btn');
         const globalSkillSettingsContainer = document.getElementById('global-skill-settings-container');
+
+        // データ管理UI要素
+        const exportDataBtn = document.getElementById('export-data-btn');
+        const importDataBtn = document.getElementById('import-data-btn');
+        const importFileInput = document.getElementById('import-file-input');
+
+        /**
+         * ログにメッセージを追加する関数
+         * @param {string} message - 追加するメッセージ
+         * @param {string} type - メッセージのタイプ ('info', 'error', 'success', 'warning')
+         */
+        function logMessage(message, type = 'info') {
+            const p = document.createElement('p');
+            p.innerHTML = message;
+            if (type === 'error') {
+                p.classList.add('text-red-500', 'font-bold');
+            } else if (type === 'success') {
+                p.classList.add('text-green-600', 'font-bold');
+            } else if (type === 'warning') {
+                p.classList.add('text-yellow-600');
+            }
+            combatLogDiv.appendChild(p);
+            combatLogDiv.scrollTop = combatLogDiv.scrollHeight; // スクロールを一番下へ
+        }
+
 
         /**
          * ダイス表記 (例: "1d6", "2d4+2", "d10") を解析するヘルパー関数
@@ -747,29 +786,29 @@
                     if (target.isAlive) { // ターゲットが生存している場合のみ回避を試みる
                         // ターゲットが複数回回避不可 && 攻撃済みの場合、回避できない
                         if (!target.allowMultipleDodges && target.hasAttackedThisTurn) {
-                            if (!isBatchSim) log += `<br>${target.name}はすでに攻撃を行ったため、回避できませんでした。`;
+                            if (!isBatchSim) logMessage(`<br>${target.name}はすでに攻撃を行ったため、回避できませんでした。`);
                         } else if (target.allowMultipleDodges || target.canDodgeThisTurn) { // 複数回避可、または今ターンまだ回避していない
                             const dodgeRoll = target.rollD100();
-                            if (!isBatchSim) log += `<br>${target.name}は回避を試みた。（ロール: ${dodgeRoll} / 技能値: ${target.stats.DODGE}）`;
+                            if (!isBatchSim) logMessage(`<br>${target.name}は回避を試みた。（ロール: ${dodgeRoll} / 技能値: ${target.stats.DODGE}）`);
 
                             if (dodgeRoll <= target.stats.DODGE) {
-                                if (!isBatchSim) log += `<br>${target.name}は攻撃を回避した！`;
+                                if (!isBatchSim) logMessage(`<br>${target.name}は攻撃を回避した！`);
                                 if (!target.allowMultipleDodges) { // 複数回避不可の場合のみフラグをオフ
                                     target.canDodgeThisTurn = false;
                                 }
                                 this.hasAttackedThisTurn = true; // 攻撃成功したのでフラグを立てる
                                 return log; // 回避成功で終了
                             } else {
-                                if (!isBatchSim) log += `<br>${target.name}は回避に失敗した。`;
+                                if (!isBatchSim) logMessage(`<br>${target.name}は回避に失敗した。`);
                                 if (!target.allowMultipleDodges) { // 複数回避不可の場合のみフラグをオフ
                                     target.canDodgeThisTurn = false;
                                 }
                             }
                         } else {
-                            if (!isBatchSim) log += `<br>${target.name}は今ターン回避済みのため、回避できなかった。`;
+                            if (!isBatchSim) logMessage(`<br>${target.name}は今ターン回避済みのため、回避できなかった。`);
                         }
                     } else { // ターゲットが死亡している場合
-                        if (!isBatchSim) log += `<br>${target.name}は既に戦闘不能です。`;
+                        if (!isBatchSim) logMessage(`<br>${target.name}は既に戦闘不能です。`);
                     }
 
 
@@ -778,9 +817,9 @@
                     let baseDamage = 0; // 基本ダメージを初期化
                     if (parsedDamage) {
                         baseDamage = rollDice(parsedDamage.numDice, parsedDamage.dieType, parsedDamage.modifier);
-                        if (!isBatchSim) log += `<br>基本ダメージ: ${baseDamage}点`;
+                        if (!isBatchSim) logMessage(`<br>基本ダメージ: ${baseDamage}点`);
                     } else {
-                        if (!isBatchSim) log += `<br><span class="text-yellow-600">無効なダメージ表記のため、1点のダメージを与えます。（DMG: ${globalSkillDefinition.damage}）</span>`;
+                        if (!isBatchSim) logMessage(`<br><span class="text-yellow-600">無効なダメージ表記のため、1点のダメージを与えます。（DMG: ${globalSkillDefinition.damage}）</span>`);
                         baseDamage = 1;
                     }
 
@@ -791,26 +830,26 @@
                             dbDamage = rollDice(dbParsed.numDice, dbParsed.dieType, dbParsed.modifier);
                             if (globalSkillDefinition.special === "martial_arts") {
                                 dbDamage *= 2; // マーシャルアーツの場合DB2倍
-                                if (!isBatchSim) log += ` <span class="text-red-500">(マーシャルアーツによるDB2倍！)</span>`;
+                                if (!isBatchSim) logMessage(` <span class="text-red-500">(マーシャルアーツによるDB2倍！)</span>`);
                             }
-                            if (!isBatchSim) log += `<br>ダメージボーナス: ${dbDamage}点`;
+                            if (!isBatchSim) logMessage(`<br>ダメージボーナス: ${dbDamage}点`);
                         }
                     }
 
                     let finalDamage = baseDamage + dbDamage;
                     if (finalDamage < 0) finalDamage = 0; // ダメージがマイナスにならないように
 
-                    if (!isBatchSim) log += `<br>${target.name}に<span class="font-bold">${finalDamage}</span>点のダメージを与えた！ (合計)`;
+                    if (!isBatchSim) logMessage(`<br>${target.name}に<span class="font-bold">${finalDamage}</span>点のダメージを与えた！ (合計)`);
                     const died = target.takeDamage(finalDamage);
 
                     if (died) {
                         // ここで戦闘不能メッセージを一度だけ出力
-                        if (!isBatchSim) log += `<br><span class="text-red-600">${target.name}はHPが0になり、戦闘不能になった。</span>`;
+                        if (!isBatchSim) logMessage(`<br><span class="text-red-600">${target.name}はHPが0になり、戦闘不能になった。</span>`);
                     }
                     this.hasAttackedThisTurn = true; // 攻撃成功したのでフラグを立てる
                 } else {
                     // 失敗
-                    if (!isBatchSim) log += `<br>${this.name}の攻撃は失敗した。`;
+                    if (!isBatchSim) logMessage(`<br>${this.name}の攻撃は失敗した。`);
                 }
                 return log;
             }
@@ -1683,24 +1722,118 @@
 
         restartButton.addEventListener('click', () => restartSimulation(true)); // 再配置したボタンにイベントリスナーを設定 (ローカルストレージクリア付き)
 
-        /**
-         * ログにメッセージを追加する関数
-         * @param {string} message - 追加するメッセージ
-         * @param {string} type - メッセージのタイプ ('info', 'error', 'success', 'warning')
-         */
-        function logMessage(message, type = 'info') {
-            const p = document.createElement('p');
-            p.innerHTML = message;
-            if (type === 'error') {
-                p.classList.add('text-red-500', 'font-bold');
-            } else if (type === 'success') {
-                p.classList.add('text-green-600', 'font-bold');
-            } else if (type === 'warning') {
-                p.classList.add('text-yellow-600');
+        // エクスポート機能
+        exportDataBtn.addEventListener('click', () => {
+            const data = {
+                attackSkillDefinitions: attackSkillDefinitions,
+                players: players,
+                npcs: npcs,
+                playerCharacterCounter: playerCharacterCounter,
+                npcCharacterCounter: npcCharacterCounter
+            };
+            const jsonData = JSON.stringify(data, null, 2); // 整形してエクスポート
+
+            const blob = new Blob([jsonData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'coc_simulation_data.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            logMessage('設定データをJSONファイルにエクスポートしました。', 'success');
+        });
+
+        // インポート機能
+        importDataBtn.addEventListener('click', () => {
+            importFileInput.click(); // 非表示のファイル入力要素をクリック
+        });
+
+        importFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                logMessage('ファイルが選択されていません。', 'warning');
+                return;
             }
-            combatLogDiv.appendChild(p);
-            combatLogDiv.scrollTop = combatLogDiv.scrollHeight; // スクロールを一番下へ
-        }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+
+                    // データの構造を検証（簡易的なチェック）
+                    if (importedData.attackSkillDefinitions && importedData.players && importedData.npcs) {
+                        // 既存のデータをクリア
+                        players = [];
+                        npcs = [];
+                        playerCharactersDiv.innerHTML = '';
+                        npcCharactersDiv.innerHTML = '';
+                        
+                        // 読み込んだデータを設定
+                        attackSkillDefinitions = importedData.attackSkillDefinitions;
+
+                        // キャラクターをCharacterクラスのインスタンスとして再構築
+                        players = importedData.players.map(data => {
+                            const char = new Character(data.id, data.name, data.isPlayer);
+                            Object.assign(char.stats, data.stats); // statsオブジェクトを上書き
+                            Object.assign(char.initialStats, data.initialStats); // initialStatsも上書き
+                            char.isAlive = data.isAlive;
+                            char.canDodgeThisTurn = data.canDodgeThisTurn;
+                            char.allowMultipleDodges = data.allowMultipleDodges;
+                            char.isGrappled = data.isGrappled;
+                            char.initiativeRoll = data.initiativeRoll;
+                            char.hasAttackedThisTurn = data.hasAttackedThisTurn || false;
+                            // attackSkillsはそのままコピー
+                            char.attackSkills = data.attackSkills;
+                            // ロード後にDBを再計算 (STRやSIZが変更されている可能性のため)
+                            char.stats.DB = calculateDamageBonus(char.stats.STR * 5, char.stats.SIZ * 5); 
+                            return char;
+                        });
+
+                        npcs = importedData.npcs.map(data => {
+                            const char = new Character(data.id, data.name, data.isPlayer);
+                            Object.assign(char.stats, data.stats);
+                            Object.assign(char.initialStats, data.initialStats);
+                            char.isAlive = data.isAlive;
+                            char.canDodgeThisTurn = data.canDodgeThisTurn;
+                            char.allowMultipleDodges = data.allowMultipleDodges;
+                            char.isGrappled = data.isGrappled;
+                            char.initiativeRoll = data.initiativeRoll;
+                            char.hasAttackedThisTurn = data.hasAttackedThisTurn || false;
+                            char.attackSkills = data.attackSkills;
+                            char.stats.DB = calculateDamageBonus(char.stats.STR * 5, char.stats.SIZ * 5);
+                            return char;
+                        });
+
+                        playerCharacterCounter = importedData.playerCharacterCounter || 0;
+                        npcCharacterCounter = importedData.npcCharacterCounter || 0;
+
+                        // UIを更新
+                        renderGlobalSkillSettings();
+                        players.forEach(char => playerCharactersDiv.appendChild(createCharacterCard(char)));
+                        npcs.forEach(char => npcCharactersDiv.appendChild(createCharacterCard(char)));
+                        playerCountSpan.textContent = players.length;
+                        npcCountSpan.textContent = npcs.length;
+
+                        updateRemoveButtons();
+                        updateAllCharacterDisplays();
+                        saveDataToLocalStorage(); // インポート後、ローカルストレージに保存
+                        logMessage('設定データを正常にインポートしました。', 'success');
+                    } else {
+                        logMessage('選択されたJSONファイルのデータ構造が不正です。', 'error');
+                    }
+                } catch (error) {
+                    console.error('JSONファイルの読み込みまたはパース中にエラーが発生しました:', error);
+                    logMessage('選択されたJSONファイルを読み込めませんでした。ファイルが破損しているか、形式が正しくありません。', 'error');
+                }
+            };
+            reader.onerror = (error) => {
+                console.error('ファイル読み込みエラー:', error);
+                logMessage('ファイルの読み込み中にエラーが発生しました。', 'error');
+            };
+            reader.readAsText(file);
+        });
 
         /**
          * キャラクターのUI表示を更新する関数
@@ -1933,6 +2066,9 @@
             document.querySelectorAll('select[id^="add-skill-select-"]').forEach(select => select.disabled = true); // 追加ドロップダウンも無効化
             // 共通設定UIも無効化
             document.querySelectorAll('.global-skill-damage-input, .global-skill-applies-db-checkbox, .global-skill-value-input, .global-remove-skill-btn, #add-global-custom-skill-btn, #global-new-skill-name, #global-new-skill-value, #global-new-skill-damage, #global-new-skill-applies-db').forEach(input => input.disabled = true);
+            // データ管理UIも無効化
+            exportDataBtn.disabled = true;
+            importDataBtn.disabled = true;
 
 
             // 戦闘開始前に、有効な攻撃技能を持つキャラクターが一人もいない場合は警告を出す
@@ -2025,6 +2161,9 @@
             document.querySelectorAll('select[id^="add-skill-select-"]').forEach(select => select.disabled = false); // 追加ドロップダウンも有効化
             // 共通設定UIも有効化
             document.querySelectorAll('.global-skill-damage-input, .global-skill-applies-db-checkbox, .global-skill-value-input, .global-remove-skill-btn, #add-global-custom-skill-btn, #global-new-skill-name, #global-new-skill-value, #global-new-skill-damage, #global-new-skill-applies-db').forEach(input => input.disabled = false);
+            // データ管理UIも有効化
+            exportDataBtn.disabled = false;
+            importDataBtn.disabled = false;
 
             updateRemoveButtons(); // 削除ボタンの有効/無効を更新
             updateAllCharacterDisplays(); // 全てのキャラクター表示を更新して、入力フィールドが再度有効になるようにする
@@ -2048,10 +2187,10 @@
             // キャラクターをリセット
             players = [];
             npcs = [];
-            playerCharacterCounter = 0; // カウンターをリセット
-            npcCharacterCounter = 0;    // カウンターをリセット
             playerCharactersDiv.innerHTML = '';
             npcCharactersDiv.innerHTML = '';
+            playerCharacterCounter = 0; // カウンターをリセット
+            npcCharacterCounter = 0;    // カウンターをリセット
 
             // ローカルストレージをクリアした場合は、初期キャラクターを再追加
             // そうでない場合は、loadDataFromLocalStorage() がキャラクターを追加する
@@ -2074,6 +2213,9 @@
             document.querySelectorAll('select[id^="add-skill-select-"]').forEach(select => select.disabled = false); // 追加ドロップダウンも有効化
             // 共通設定UIも有効化
             document.querySelectorAll('.global-skill-damage-input, .global-skill-applies-db-checkbox, .global-skill-value-input, .global-remove-skill-btn, #add-global-custom-skill-btn, #global-new-skill-name, #global-new-skill-value, #global-new-skill-damage, #global-new-skill-applies-db').forEach(input => input.disabled = false);
+            // データ管理UIも有効化
+            exportDataBtn.disabled = false;
+            importDataBtn.disabled = false;
 
             updateRemoveButtons(); // 初期状態の削除ボタン表示を更新
             updateAllCharacterDisplays(); // キャラクター表示を初期状態にリセット
