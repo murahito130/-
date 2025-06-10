@@ -282,10 +282,12 @@
                         <label for="global-new-skill-damage" class="text-gray-700 font-medium">初期ダメージ:</label>
                         <input type="text" id="global-new-skill-damage" class="stat-input-text w-full" value="1d3" placeholder="例: 1d6, 2d4+2">
                     </div>
-                    <div class="input-group flex-row items-center justify-start gap-1">
+                    <!-- 修正箇所: ここから -->
+                    <div class="flex items-center justify-start gap-1 mb-4">
                         <input type="checkbox" id="global-new-skill-applies-db" class="form-checkbox h-4 w-4 text-blue-600 rounded" checked>
                         <label for="global-new-skill-applies-db" class="text-gray-700 font-medium whitespace-nowrap">DB適応</label>
                     </div>
+                    <!-- 修正箇所: ここまで -->
                     <button id="add-global-custom-skill-btn" class="button button-secondary w-full md:w-auto">新しい技能を追加</button>
                 </div>
 
@@ -1065,14 +1067,16 @@
                                 id="global-damage-${skillName}" data-skill-name="${skillName}" data-stat="damage" placeholder="例: 1d6, 2d4+2">
                         </div>
                     </div>
-                    <div class="flex flex-col gap-1 ml-2 items-start">
-                        <input type="checkbox" id="global-applies-db-${skillName}"
-                            class="form-checkbox h-4 w-4 text-blue-600 rounded global-skill-applies-db-checkbox"
-                            data-skill-name="${skillName}"
-                            ${skillDef.appliesDB ? 'checked' : ''}>
-                        <label for="global-applies-db-${skillName}" class="text-gray-700 text-sm whitespace-nowrap cursor-pointer">DB適応</label>
+                    <div class="flex-shrink-0 flex flex-col gap-2 items-start">
+                        <div class="flex items-center gap-1">
+                            <input type="checkbox" id="global-applies-db-${skillName}"
+                                class="form-checkbox h-4 w-4 text-blue-600 rounded global-skill-applies-db-checkbox"
+                                data-skill-name="${skillName}"
+                                ${skillDef.appliesDB ? 'checked' : ''}>
+                            <label for="global-applies-db-${skillName}" class="text-gray-700 text-sm whitespace-nowrap cursor-pointer">DB適応</label>
+                        </div>
                         ${skillDef.deletable ? `
-                            <button class="global-remove-skill-btn button button-danger px-2 py-1 text-xs mt-1" data-skill-name="${skillName}">削除</button>
+                            <button class="global-remove-skill-btn button button-danger px-2 py-1 text-xs">削除</button>
                         ` : ''}
                     </div>
                 `;
