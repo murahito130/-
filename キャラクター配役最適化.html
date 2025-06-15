@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>キャラクター配役最適化アプリ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 16px; /* より大きな丸み */
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15); /* より明確な影 */
+            width: 100%;
+            max-width: 800px;
+            border: 1px solid #e0e0e0;
+        }
+        h1 {
+            color: #333;
+            font-size: 2.5rem; /* 少し大きく */
+            font-weight: 700;
+            margin-bottom: 30px; /* 余白を増やす */
+            text-align: center;
+        }
+        .player-input-section, .character-input-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: #ffffff; /* 背景色を統一 */
+            border-radius: 12px; /* 丸みを強調 */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08); /* 影を追加 */
+            border: 1px solid #e9e9e9;
+        }
+        h2 {
+            font-size: 1.75rem; /* 少し大きく */
+            font-weight: 600;
+            color: #212121; /* より濃い色 */
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #424242;
+        }
+        input[type="text"] {
+            width: calc(100% - 20px);
+            padding: 14px; /* パディングを増やす */
+            margin-bottom: 15px;
+            border: 1px solid #bdbdbd; /* 枠線を強調 */
+            border-radius: 8px;
+            font-size: 1rem;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        input[type="text"]:focus {
+            border-color: #4285F4; /* フォーカス時の色 */
+            box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.2); /* フォーカス時の影 */
+            outline: none;
+        }
+        .button-group button {
+            background-color: #4285F4; /* Google Blue */
+            color: white;
+            padding: 14px 24px; /* パディングを増やす */
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem; /* 少し大きく */
+            font-weight: 600;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            margin-right: 10px;
+        }
+        .button-group button:hover {
+            background-color: #3367D6; /* 少し濃く */
+            transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+        }
+        .button-group button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .button-group button.secondary {
+            background-color: #616161; /* Darker grey for secondary */
+        }
+        .button-group button.secondary:hover {
+            background-color: #424242;
+        }
+        .player-item, .character-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #e0e0e0; /* より明るいグレー */
+            padding: 12px 18px; /* パディングを増やす */
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #dcdcdc;
+            cursor: grab;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* subtle shadow */
+        }
+        .player-item:hover, .character-item:hover {
+            background-color: #d1d1d1;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .player-item.dragging, .character-item.dragging {
+            opacity: 0.7; /* Dragging state */
+            border: 2px dashed #4285F4;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .player-item span, .character-item span {
+            font-weight: 500;
+            color: #333;
+        }
+        .player-item button, .character-item button {
+            background-color: #d32f2f; /* Material Red */
+            color: white;
+            border: none;
+            border-radius: 6px; /* 少し大きめに */
+            padding: 8px 12px; /* パディングを増やす */
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .player-item button:hover, .character-item button:hover {
+            background-color: #b71c1c; /* Darker Red */
+            transform: translateY(-1px);
+        }
+        .preferences-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9e9e9;
+        }
+        .player-preferences {
+            margin-bottom: 15px;
+            padding: 18px; /* パディングを増やす */
+            background-color: #f5f5f5; /* Light grey */
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .player-preferences h3 {
+            font-size: 1.35rem; /* 少し大きく */
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+        }
+        /* Player List styles - keep vertical */
+        #playerList {
+            display: flex;
+            flex-direction: column; /* Keep players list vertical */
+            gap: 10px; /* 間隔を少し広げる */
+            min-height: 60px; /* 高さを確保 */
+            border: 1px dashed #bdbdbd; /* 枠線を明確に */
+            padding: 12px;
+            border-radius: 8px;
+            background-color: #fdfdfd;
+        }
+        #playerList.dragging-over {
+            border-color: #4CAF50;
+            background-color: #e8f5e9; /* Light green for drag-over */
+        }
+
+        /* Preference List styles - make horizontal */
+        .preference-list {
+            display: flex;
+            flex-direction: row; /* Changed to row for horizontal display */
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 60px; /* 高さを確保 */
+            border: 1px dashed #bdbdbd;
+            padding: 12px;
+            border-radius: 8px;
+            background-color: #fdfdfd;
+        }
+        .preference-list.dragging-over {
+            border-color: #4CAF50;
+            background-color: #e8f5e9;
+        }
+
+        .preference-item {
+            background-color: #2196F3; /* Material Blue */
+            color: white;
+            padding: 10px 14px; /* パディングを調整 */
+            border-radius: 6px;
+            cursor: grab;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .preference-item:hover {
+            background-color: #1976D2; /* Darker blue */
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+        }
+        .results-section {
+            padding: 20px;
+            background-color: #e3f2fd; /* Light blue for results */
+            border-radius: 12px;
+            border: 1px solid #bbdefb;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        }
+        .results-section h2 {
+            color: #1976D2; /* Darker blue for results heading */
+            font-size: 1.6rem;
+            margin-bottom: 10px;
+        }
+        .result-item {
+            font-size: 1.1rem;
+            color: #333;
+            margin-bottom: 5px;
+            padding: 4px 0;
+            border-bottom: 1px dotted #e0e0e0; /* ドットの境界線 */
+        }
+        .result-item:last-child {
+            border-bottom: none;
+        }
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            padding: 30px; /* パディングを増やす */
+            border-radius: 12px; /* 丸みを強調 */
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25); /* より明確な影 */
+            z-index: 1000;
+            border: 1px solid #cccccc;
+            display: none;
+        }
+        .message-box p {
+            margin-bottom: 25px; /* 余白を増やす */
+            font-size: 1.2rem; /* 少し大きく */
+            color: #333;
+            text-align: center;
+            line-height: 1.5;
+        }
+        .message-box button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+        .message-box button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="container mx-auto">
+        <h1>キャラクター配役最適化アプリ</h1>
+
+        <div class="player-input-section">
+            <h2>プレイヤー設定 <span class="text-sm font-normal text-gray-500">(リストの<strong class="font-bold">上</strong>にあるプレイヤーほど、配役の優先度が高くなります。ドラッグして順序を調整してください。)</span></h2>
+            <div class="flex items-center space-x-2 mb-4">
+                <input type="text" id="playerName" placeholder="プレイヤー名を入力" class="flex-grow rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                <button onclick="addPlayer()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300">追加</button>
+            </div>
+            <div id="playerList" class="space-y-2" ondragover="handlePlayerDragOver(event)" ondrop="handlePlayerDrop(event)">
+                <!-- Players will be listed here -->
+            </div>
+        </div>
+
+        <div class="character-input-section">
+            <h2>キャラクター設定</h2>
+            <div class="flex items-center space-x-2 mb-4">
+                <input type="text" id="characterName" placeholder="キャラクター名を入力" class="flex-grow rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                <button onclick="addCharacter()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300">追加</button>
+            </div>
+            <div id="characterList" class="space-y-2">
+                <!-- Characters will be listed here -->
+            </div>
+        </div>
+
+        <div class="preferences-section">
+            <h2>配役希望のドラッグ＆ドロップ</h2>
+            <p class="text-gray-600 mb-4">各プレイヤーのキャラクター希望順位を、ドラッグ&ドロップで<strong class="font-bold">左から優先度の高い順</strong>に並べ替えてください。</p>
+            <div id="playerPreferencesContainer">
+                <!-- Player preference sections will be dynamically added here -->
+            </div>
+        </div>
+
+        <div class="button-group flex justify-center mt-6">
+            <button onclick="assignRolesHandler()" class="secondary">配役を決定</button>
+        </div>
+
+        <div class="results-section mt-8">
+            <h2>配役結果</h2>
+            <div id="assignmentResults">
+                <p class="text-gray-500">上記ボタンをクリックすると結果が表示されます。</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="messageBox" class="message-box">
+        <p id="messageText"></p>
+        <button onclick="hideMessageBox()">OK</button>
+    </div>
+
+    <script>
+        // グローバル変数
+        let players = [];
+        let characters = [];
+        let playerPreferences = {}; // { player1: [charA, charB], player2: [charC, charA] }
+
+        // ローカルストレージにデータを保存する関数
+        function saveDataToLocalStorage() {
+            localStorage.setItem('roleAssignmentPlayers', JSON.stringify(players));
+            localStorage.setItem('roleAssignmentCharacters', JSON.stringify(characters));
+            localStorage.setItem('roleAssignmentPreferences', JSON.stringify(playerPreferences));
+        }
+
+        // ローカルストレージからデータをロードする関数
+        function loadDataFromLocalStorage() {
+            const storedPlayers = localStorage.getItem('roleAssignmentPlayers');
+            const storedCharacters = localStorage.getItem('roleAssignmentCharacters');
+            const storedPreferences = localStorage.getItem('roleAssignmentPreferences');
+
+            if (storedPlayers) {
+                players = JSON.parse(storedPlayers);
+            }
+            if (storedCharacters) {
+                characters = JSON.parse(storedCharacters);
+            }
+            if (storedPreferences) {
+                playerPreferences = JSON.parse(storedPreferences);
+            }
+        }
+
+        // メッセージボックスを表示する関数
+        function showMessageBox(message) {
+            document.getElementById('messageText').innerText = message;
+            document.getElementById('messageBox').style.display = 'block';
+        }
+
+        // メッセージボックスを非表示にする関数
+        function hideMessageBox() {
+            document.getElementById('messageBox').style.display = 'none';
+        }
+
+        // プレイヤーを追加
+        function addPlayer() {
+            const playerNameInput = document.getElementById('playerName');
+            const playerName = playerNameInput.value.trim();
+            if (playerName && !players.includes(playerName)) {
+                players.push(playerName);
+                playerPreferences[playerName] = [...characters]; // 初期希望は全キャラクター
+                saveDataToLocalStorage(); // データを保存
+                renderPlayers();
+                renderPlayerPreferences();
+                playerNameInput.value = '';
+            } else if (playerName && players.includes(playerName)) {
+                showMessageBox('そのプレイヤーはすでに存在します。');
+            } else {
+                showMessageBox('プレイヤー名を入力してください。');
+            }
+        }
+
+        // プレイヤーを削除
+        function removePlayer(name) {
+            players = players.filter(p => p !== name);
+            delete playerPreferences[name];
+            saveDataToLocalStorage(); // データを保存
+            renderPlayers();
+            renderPlayerPreferences();
+        }
+
+        // プレイヤーリストをレンダリング (ドラッグ＆ドロップ対応)
+        function renderPlayers() {
+            const playerListDiv = document.getElementById('playerList');
+            playerListDiv.innerHTML = '';
+            players.forEach(player => {
+                const playerItem = document.createElement('div');
+                playerItem.className = 'player-item';
+                playerItem.draggable = true; // Make player items draggable
+                playerItem.textContent = player; // Set player name as text content
+                playerItem.dataset.player = player; // Store player name in data attribute
+                playerItem.ondragstart = handlePlayerDragStart;
+                playerItem.ondragend = handlePlayerDragEnd;
+
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = '削除';
+                deleteButton.onclick = () => removePlayer(player);
+
+                const span = document.createElement('span'); // Wrap player name in a span for consistent styling
+                span.textContent = player;
+                playerItem.innerHTML = ''; // Clear existing content to append new elements
+                playerItem.appendChild(span);
+                playerItem.appendChild(deleteButton);
+
+                playerListDiv.appendChild(playerItem);
+            });
+        }
+
+        // キャラクターを追加
+        function addCharacter() {
+            const characterNameInput = document.getElementById('characterName');
+            const characterName = characterNameInput.value.trim();
+            if (characterName && !characters.includes(characterName)) {
+                characters.push(characterName);
+                // 各プレイヤーの希望リストに新しいキャラクターを追加
+                for (const player in playerPreferences) {
+                    // 既にキャラクターが存在しない場合のみ追加
+                    if (!playerPreferences[player].includes(characterName)) {
+                        playerPreferences[player].push(characterName);
+                    }
+                }
+                saveDataToLocalStorage(); // データを保存
+                renderCharacters();
+                renderPlayerPreferences();
+                characterNameInput.value = '';
+            } else if (characterName && characters.includes(characterName)) {
+                showMessageBox('そのキャラクターはすでに存在します。');
+            } else {
+                showMessageBox('キャラクター名を入力してください。');
+            }
+        }
+
+        // キャラクターを削除
+        function removeCharacter(name) {
+            characters = characters.filter(c => c !== name);
+            // 各プレイヤーの希望リストから削除されたキャラクターを削除
+            for (const player in playerPreferences) {
+                playerPreferences[player] = playerPreferences[player].filter(c => c !== name);
+            }
+            saveDataToLocalStorage(); // データを保存
+            renderCharacters();
+            renderPlayerPreferences();
+        }
+
+        // キャラクターリストをレンダリング
+        function renderCharacters() {
+            const characterListDiv = document.getElementById('characterList');
+            characterListDiv.innerHTML = '';
+            characters.forEach(character => {
+                const characterItem = document.createElement('div');
+                characterItem.className = 'character-item';
+                characterItem.innerHTML = `
+                    <span>${character}</span>
+                    <button onclick="removeCharacter('${character}')">削除</button>
+                `;
+                characterListDiv.appendChild(characterItem);
+            });
+        }
+
+        // 各プレイヤーの配役希望セクションをレンダリング（ドラッグ＆ドロップ対応）
+        function renderPlayerPreferences() {
+            const container = document.getElementById('playerPreferencesContainer');
+            container.innerHTML = '';
+
+            players.forEach(player => {
+                const playerPrefDiv = document.createElement('div');
+                playerPrefDiv.className = 'player-preferences';
+                playerPrefDiv.innerHTML = `
+                    <h3>${player}の希望順位</h3>
+                    <div id="prefList-${player}" class="preference-list" ondragover="handleCharacterDragOver(event)" ondrop="handleCharacterDrop(event, '${player}')">
+                        <!-- Draggable characters will go here -->
+                    </div>
+                `;
+                container.appendChild(playerPrefDiv);
+
+                const prefList = document.getElementById(`prefList-${player}`);
+                playerPreferences[player].forEach(char => {
+                    const charItem = document.createElement('div');
+                    charItem.className = 'preference-item';
+                    charItem.draggable = true;
+                    charItem.textContent = char;
+                    charItem.dataset.character = char; // キャラクター名をデータ属性に保存
+                    charItem.ondragstart = handleCharacterDragStart;
+                    charItem.ondragend = handleCharacterDragEnd;
+                    prefList.appendChild(charItem);
+                });
+            });
+        }
+
+        // ======================== ドラッグ＆ドロップ処理 (キャラクター) ========================
+        let draggedCharacterItem = null;
+        let draggedCharacterSourcePlayer = null; // ドラッグ開始時のプレイヤー名を保持
+
+        function handleCharacterDragStart(event) {
+            draggedCharacterItem = event.target;
+            draggedCharacterSourcePlayer = event.target.closest('.player-preferences').querySelector('h3').textContent.replace('の希望順位', '').trim(); // プレイヤー名を取得
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', draggedCharacterItem.dataset.character);
+            setTimeout(() => {
+                draggedCharacterItem.classList.add('dragging');
+            }, 0);
+        }
+
+        function handleCharacterDragEnd() {
+            if (draggedCharacterItem) {
+                draggedCharacterItem.classList.remove('dragging');
+            }
+            draggedCharacterItem = null;
+            draggedCharacterSourcePlayer = null; // リセット
+        }
+
+        function handleCharacterDragOver(event) {
+            event.preventDefault(); // ドロップを許可
+            const targetList = event.currentTarget;
+            targetList.classList.add('dragging-over');
+
+            const draggable = document.querySelector('.preference-item.dragging');
+
+            // 別のプレイヤーの希望順位リストへのドロップを許可しない
+            // ドラッグ中のアイテムの親要素とドロップ対象要素のIDを比較
+            if (draggable && draggable.closest('.player-preferences').querySelector('h3').textContent.replace('の希望順位', '').trim() !== targetList.closest('.player-preferences').querySelector('h3').textContent.replace('の希望順位', '').trim()) {
+                event.dataTransfer.dropEffect = 'none'; // ドロップ不可を示す
+                return;
+            } else {
+                event.dataTransfer.dropEffect = 'move'; // ドロップ可を示す
+            }
+
+            const afterElement = getDragAfterElement(targetList, event.clientX, '.preference-item:not(.dragging)');
+            
+            // 同一リスト内での移動の場合のみDOMを操作して位置を更新
+            if (draggable && draggable.parentElement === targetList) {
+                if (afterElement == null) {
+                    targetList.appendChild(draggable);
+                } else {
+                    targetList.insertBefore(draggable, afterElement);
+                }
+            }
+        }
+
+        function handleCharacterDrop(event, targetPlayer) {
+            event.preventDefault();
+            const targetList = event.currentTarget;
+            targetList.classList.remove('dragging-over');
+
+            if (!draggedCharacterItem) return;
+
+            // 別のプレイヤーの希望順位リストへのドロップを許可しない
+            if (draggedCharacterSourcePlayer !== targetPlayer) {
+                // UIを再レンダリングして、ドラッグ開始前の状態に戻す
+                renderPlayerPreferences();
+                showMessageBox('キャラクターは、同じプレイヤーの希望順位リスト内でのみ移動できます。');
+                return;
+            }
+
+            const droppedCharacter = draggedCharacterItem.dataset.character;
+
+            // ターゲットリストのDOMから現在の順序を読み取り、playerPreferencesを更新
+            const newOrderForTarget = Array.from(targetList.children)
+                                          .filter(item => item.classList.contains('preference-item'))
+                                          .map(item => item.dataset.character);
+
+            playerPreferences[targetPlayer] = newOrderForTarget;
+            saveDataToLocalStorage(); // データを保存
+
+            // UIを再レンダリングしてデータと同期させる
+            renderPlayerPreferences();
+
+            // ドラッグ関連のグローバル変数をリセット
+            draggedCharacterItem = null;
+            draggedCharacterSourcePlayer = null;
+        }
+
+
+        // ======================== ドラッグ＆ドロップ処理 (プレイヤー) ========================
+        let draggedPlayerItem = null;
+        function handlePlayerDragStart(event) {
+            draggedPlayerItem = event.target;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', draggedPlayerItem.dataset.player); // プレイヤー名をセット
+            setTimeout(() => {
+                draggedPlayerItem.classList.add('dragging');
+            }, 0);
+        }
+
+        function handlePlayerDragEnd() {
+            if (draggedPlayerItem) {
+                draggedPlayerItem.classList.remove('dragging');
+            }
+            draggedPlayerItem = null;
+        }
+
+        function handlePlayerDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            const targetList = event.currentTarget;
+            targetList.classList.add('dragging-over');
+
+            const afterElement = getDragAfterElement(targetList, event.clientY, '.player-item:not(.dragging)');
+            const draggable = document.querySelector('.player-item.dragging');
+            if (draggable) {
+                if (afterElement == null) {
+                    targetList.appendChild(draggable);
+                } else {
+                    targetList.insertBefore(draggable, afterElement);
+                }
+            }
+        }
+
+        function handlePlayerDrop(event) {
+            event.preventDefault();
+            const targetList = event.currentTarget;
+            targetList.classList.remove('dragging-over');
+
+            if (!draggedPlayerItem) return;
+
+            // DOMの新しい順序に基づいてplayers配列を更新
+            const newPlayerOrder = Array.from(targetList.children)
+                                    .filter(item => item.classList.contains('player-item'))
+                                    .map(item => item.dataset.player);
+
+            players = newPlayerOrder; // グローバルなplayers配列を更新
+            saveDataToLocalStorage(); // データを保存
+
+            // UIを再レンダリング
+            renderPlayers();
+            renderPlayerPreferences(); // プレイヤーの表示順序が変わったので、希望設定セクションも更新
+
+            draggedPlayerItem = null; // Reset
+        }
+
+        // ドロップ位置に基づいて要素を挿入する場所を決定する汎用関数
+        // isHorizontal: trueの場合、x座標に基づいて要素を決定。falseの場合、y座標。
+        function getDragAfterElement(container, clientCoordinate, selector) {
+            const draggableElements = [...container.querySelectorAll(selector)];
+
+            // Determine if the container is primarily horizontal or vertical for drop positioning
+            const isHorizontal = container.classList.contains('preference-list'); // Assumes preference-list is horizontal
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                let offset;
+                if (isHorizontal) {
+                    offset = clientCoordinate - box.left - box.width / 2;
+                } else {
+                    offset = clientCoordinate - box.top - box.height / 2;
+                }
+
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        // PythonコードのJavaScriptへの移植
+        // itertools.permutations の代替 (簡易版)
+        function permutations(arr) {
+            if (arr.length === 0) return [[]];
+            if (arr.length === 1) return [arr];
+            const result = [];
+            for (let i = 0; i < arr.length; i++) {
+                const first = arr[i];
+                const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
+                const innerPerms = permutations(rest);
+                for (let j = 0; j < innerPerms.length; j++) {
+                    result.push([first, ...innerPerms[j]]);
+                }
+            }
+            return result;
+        }
+
+        // 二次関数を定義
+        function quadratic_function(x, X_NUM) {
+            // 二次関数の係数を設定
+            const a = 1 / (X_NUM**2);
+            // 二次関数の式を定義
+            const y = -a * (x - X_NUM) ** 2 + 1;
+            return y;
+        }
+
+        // スコアを計算
+        function calculate_score(roles, preferences) {
+            let score = 0;
+            const num_players = Object.keys(preferences).length;
+            const player_list = players; // グローバルなplayers配列を使用
+
+            for (const player in roles) {
+                const role = roles[player];
+                const characters = preferences[player];
+                const num_characters = characters.length;
+                const num_player = player_list.indexOf(player); // ここでplayers配列の順序を使用
+                const num_character = characters.indexOf(role);
+
+                if (num_character === -1) {
+                    // キャラクターがプレイヤーの希望リストにない場合、低いスコアを与える
+                    score += 0; // または非常に小さい負の数
+                    continue;
+                }
+
+                score += (1 - quadratic_function(num_character, num_characters * 1.618)) *
+                         (1 - quadratic_function(num_player, num_players * 1.618));
+            }
+            return score / num_players;
+        }
+
+        // 配役を決定
+        function assign_roles(preferences) {
+            const currentPlayers = players; // 現在のプレイヤー順序を使用
+            let roles = {}; // { player: assigned_role }
+            let assigned_roles_initial = new Set(); // 初期配役で使われたキャラクター
+
+            // 初期配役を決定（各プレイヤーの第一希望から順に空いているものを割り当てる）
+            for (const player of currentPlayers) { // currentPlayersの順序で処理
+                let assigned = false;
+                for (const role of preferences[player]) {
+                    if (!assigned_roles_initial.has(role)) {
+                        roles[player] = role;
+                        assigned_roles_initial.add(role);
+                        assigned = true;
+                        break;
+                    }
+                }
+                if (!assigned) {
+                    const unassignedChars = characters.filter(char => !assigned_roles_initial.has(char));
+                    if (unassignedChars.length > 0) {
+                        roles[player] = unassignedChars[0];
+                        assigned_roles_initial.add(unassignedChars[0]);
+                    } else {
+                        roles[player] = preferences[player][preferences[player].length - 1];
+                    }
+                }
+            }
+
+            // 最も希望しないキャラクターが配役されているか確認
+            const exist_unhappy = (currentRoles) => {
+                return currentPlayers.some(player => { // currentPlayersの順序で処理
+                    const playerPref = preferences[player];
+                    if (!playerPref || playerPref.length === 0) return false;
+                    return currentRoles[player] === playerPref[playerPref.length - 1];
+                });
+            };
+
+            let unhappy_initial = exist_unhappy(roles);
+
+            if (!unhappy_initial) {
+                return roles;
+            }
+
+            // 配役の最適化を探索
+            let best_roles = {};
+            let best_score = -Infinity;
+
+            const available_characters = Array.from(new Set(Object.values(preferences).flat()));
+
+            if (currentPlayers.length === available_characters.length) {
+                 for (const perm of permutations(available_characters)) { // available_charactersの順列
+                    const trial_roles = {};
+                    for (let i = 0; i < currentPlayers.length; i++) {
+                        trial_roles[currentPlayers[i]] = perm[i];
+                    }
+
+                    if (exist_unhappy(trial_roles)) {
+                        continue;
+                    }
+
+                    const trial_score = calculate_score(trial_roles, preferences);
+
+                    if (trial_score > best_score) {
+                        best_score = trial_score;
+                        best_roles = { ...trial_roles };
+                    }
+                }
+            } else {
+                function findBestAssignment(playerIndex, currentRoles, assignedChars) {
+                    if (playerIndex === currentPlayers.length) {
+                        if (!exist_unhappy(currentRoles)) {
+                            const current_score = calculate_score(currentRoles, preferences);
+                            if (current_score > best_score) {
+                                best_score = current_score;
+                                best_roles = { ...currentRoles };
+                            }
+                        }
+                        return;
+                    }
+
+                    const currentPlayer = currentPlayers[playerIndex];
+                    for (const char of preferences[currentPlayer]) {
+                        if (!assignedChars.has(char)) {
+                            currentRoles[currentPlayer] = char;
+                            assignedChars.add(char);
+                            findBestAssignment(playerIndex + 1, currentRoles, assignedChars);
+                            assignedChars.delete(char);
+                            delete currentRoles[currentPlayer];
+                        }
+                    }
+                }
+                findBestAssignment(0, {}, new Set());
+            }
+
+            if (Object.keys(best_roles).length === 0 && unhappy_initial) {
+                 let initial_score = calculate_score(roles, preferences);
+                 if (initial_score > best_score) {
+                    best_score = initial_score;
+                    best_roles = { ...roles };
+                 } else if (Object.keys(best_roles).length === 0 && Object.keys(roles).length > 0) {
+                     best_roles = { ...roles };
+                 }
+            } else if (Object.keys(best_roles).length === 0) {
+                let finalRoles = {};
+                let usedCharacters = new Set();
+                for (const player of currentPlayers) {
+                    let assigned = false;
+                    for (const char of preferences[player]) {
+                        if (!usedCharacters.has(char)) {
+                            finalRoles[player] = char;
+                            usedCharacters.add(char);
+                            assigned = true;
+                            break;
+                        }
+                    }
+                    if (!assigned) {
+                        const remainingChars = characters.filter(c => !usedCharacters.has(c));
+                        if (remainingChars.length > 0) {
+                            finalRoles[player] = remainingChars[0];
+                            usedCharacters.add(remainingChars[0]);
+                        } else {
+                            finalRoles[player] = preferences[player][0];
+                        }
+                    }
+                }
+                return finalRoles;
+            }
+
+            return best_roles;
+        }
+
+
+        // 配役処理を実行し、結果を表示
+        function assignRolesHandler() {
+            if (players.length === 0 || characters.length === 0) {
+                showMessageBox('プレイヤーとキャラクターの両方を設定してください。');
+                return;
+            }
+
+            if (players.length > characters.length) {
+                showMessageBox('プレイヤーの数がキャラクターの数を超えています。すべてのプレイヤーに異なるキャラクターを割り当てられない可能性があります。');
+            }
+
+            const preferencesForAlgorithm = {};
+            for (const player of players) {
+                preferencesForAlgorithm[player] = playerPreferences[player] || [];
+            }
+
+            for (const player in preferencesForAlgorithm) {
+                if (preferencesForAlgorithm[player].length === 0) {
+                    showMessageBox(`プレイヤー「${player}」の希望キャラクターが設定されていません。キャラクターを追加してください。`);
+                    return;
+                }
+            }
+
+            const assignments = assign_roles(preferencesForAlgorithm);
+            const resultsDiv = document.getElementById('assignmentResults');
+            resultsDiv.innerHTML = ''; // 「決定された配役:」を削除するために初期化
+
+            for (const player in assignments) {
+                const p = document.createElement('p');
+                p.className = 'result-item';
+                p.textContent = `${player}: ${assignments[player]}`;
+                resultsDiv.appendChild(p);
+            }
+        }
+
+        // 初期ロード時にローカルストレージからデータを読み込む
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDataFromLocalStorage();
+            renderPlayers();
+            renderCharacters();
+            renderPlayerPreferences();
+        });
+    </script>
+</body>
+</html>
