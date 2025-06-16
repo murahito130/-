@@ -309,12 +309,18 @@
         </div>
 
         <div class="results-section mt-8">
-            <h2 class="flex items-center justify-between">
+            <h2 class="flex items-center justify-between mb-4">
                 配役結果
-                <label for="togglePreferenceRankDisplay" class="flex items-center text-sm font-normal text-gray-600 cursor-pointer">
-                    <input type="checkbox" id="togglePreferenceRankDisplay" class="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500" checked>
-                    希望順位を表示
-                </label>
+                <div class="flex items-center space-x-4">
+                    <label for="togglePreferenceRankDisplay" class="flex items-center text-sm font-normal text-gray-600 cursor-pointer">
+                        <input type="checkbox" id="togglePreferenceRankDisplay" class="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500" checked>
+                        希望順位を表示
+                    </label>
+                    <label for="toggleScoreDisplay" class="flex items-center text-sm font-normal text-gray-600 cursor-pointer">
+                        <input type="checkbox" id="toggleScoreDisplay" class="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500" checked>
+                        スコアを表示
+                    </label>
+                </div>
             </h2>
             <div id="assignmentResults">
                 <p class="text-gray-500">上記ボタンをクリックすると結果が表示されます。</p>
@@ -333,13 +339,15 @@
         let characters = [];
         let playerPreferences = {}; // { player1: [charA, charB], player2: [charC, charA] }
         let displayPreferenceRank = true; // 新しい設定: 希望順位表示のON/OFF
+        let displayScore = true; // 新しい設定: スコア表示のON/OFF
 
         // ローカルストレージにデータを保存する関数
         function saveDataToLocalStorage() {
             localStorage.setItem('roleAssignmentPlayers', JSON.stringify(players));
             localStorage.setItem('roleAssignmentCharacters', JSON.stringify(characters));
             localStorage.setItem('roleAssignmentPreferences', JSON.stringify(playerPreferences));
-            localStorage.setItem('roleAssignmentDisplayPreferenceRank', JSON.stringify(displayPreferenceRank)); // 設定を保存
+            localStorage.setItem('roleAssignmentDisplayPreferenceRank', JSON.stringify(displayPreferenceRank)); // 希望順位表示設定を保存
+            localStorage.setItem('roleAssignmentDisplayScore', JSON.stringify(displayScore)); // スコア表示設定を保存
         }
 
         // ローカルストレージからデータをロードする関数
@@ -347,7 +355,8 @@
             const storedPlayers = localStorage.getItem('roleAssignmentPlayers');
             const storedCharacters = localStorage.getItem('roleAssignmentCharacters');
             const storedPreferences = localStorage.getItem('roleAssignmentPreferences');
-            const storedDisplayPreferenceRank = localStorage.getItem('roleAssignmentDisplayPreferenceRank'); // 設定をロード
+            const storedDisplayPreferenceRank = localStorage.getItem('roleAssignmentDisplayPreferenceRank'); // 希望順位表示設定をロード
+            const storedDisplayScore = localStorage.getItem('roleAssignmentDisplayScore'); // スコア表示設定をロード
 
             if (storedPlayers) {
                 players = JSON.parse(storedPlayers);
@@ -364,6 +373,14 @@
                 const checkbox = document.getElementById('togglePreferenceRankDisplay');
                 if (checkbox) {
                     checkbox.checked = displayPreferenceRank;
+                }
+            }
+            if (storedDisplayScore !== null) {
+                displayScore = JSON.parse(storedDisplayScore);
+                // チェックボックスの状態を更新
+                const checkbox = document.getElementById('toggleScoreDisplay');
+                if (checkbox) {
+                    checkbox.checked = displayScore;
                 }
             }
         }
@@ -973,12 +990,15 @@
                 resultsDiv.appendChild(p);
             }
 
-            const finalScore = calculate_score(assignments, preferencesForAlgorithm);
-            const scoreP = document.createElement('p');
-            // クラス名を変更して、フォントサイズと色を調整し、より控えめにする
-            scoreP.className = 'mt-4 text-sm text-gray-600'; 
-            scoreP.textContent = `スコア: ${finalScore.toFixed(3)}`; // テキストを「スコア:」に変更
-            resultsDiv.appendChild(scoreP);
+            // displayScoreがtrueの場合のみスコアを表示
+            if (displayScore) {
+                const finalScore = calculate_score(assignments, preferencesForAlgorithm);
+                const scoreP = document.createElement('p');
+                // クラス名を変更して、フォントサイズと色を調整し、より控えめにする
+                scoreP.className = 'mt-4 text-sm text-gray-600'; 
+                scoreP.textContent = `スコア: ${finalScore.toFixed(3)}`; // テキストを「スコア:」に変更
+                resultsDiv.appendChild(scoreP);
+            }
         }
 
         // 初期ロード時にローカルストレージからデータを読み込む
@@ -989,10 +1009,21 @@
             renderPlayerPreferences();
 
             // 希望順位表示のチェックボックスのイベントリスナーを設定
-            const toggleCheckbox = document.getElementById('togglePreferenceRankDisplay');
-            if (toggleCheckbox) {
-                toggleCheckbox.addEventListener('change', (event) => {
+            const togglePreferenceRankDisplayCheckbox = document.getElementById('togglePreferenceRankDisplay');
+            if (togglePreferenceRankDisplayCheckbox) {
+                togglePreferenceRankDisplayCheckbox.addEventListener('change', (event) => {
                     displayPreferenceRank = event.target.checked;
+                    saveDataToLocalStorage(); // 設定変更を保存
+                    // 設定が変更されたら、自動的に配役を再計算して表示を更新する
+                    assignRolesHandler(); 
+                });
+            }
+
+            // スコア表示のチェックボックスのイベントリスナーを設定
+            const toggleScoreDisplayCheckbox = document.getElementById('toggleScoreDisplay');
+            if (toggleScoreDisplayCheckbox) {
+                toggleScoreDisplayCheckbox.addEventListener('change', (event) => {
+                    displayScore = event.target.checked;
                     saveDataToLocalStorage(); // 設定変更を保存
                     // 設定が変更されたら、自動的に配役を再計算して表示を更新する
                     assignRolesHandler(); 
