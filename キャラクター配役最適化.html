@@ -711,7 +711,23 @@
                 score += (1 - quadratic_function(num_character, num_characters * 1.618)) *
                          (1 - quadratic_function(num_player, num_players * 1.618));
             }
-            return score / num_players;
+
+            // 理論上の最大スコアを計算
+            // 全てのプレイヤーが第一希望を割り当てられた場合の合計スコア
+            let theoreticalMaxScoreSum = 0;
+            for (let i = 0; i < num_players; i++) {
+                // キャラクターの希望順位が0（第一希望）の場合、この部分は常に1となる
+                // プレイヤーの優先度に応じた重み付けのみが残る
+                theoreticalMaxScoreSum += (1 - quadratic_function(i, num_players * 1.618));
+            }
+
+            // theoreticalMaxScoreSum が0の場合（プレイヤーがいないなど）は、0を返す
+            if (theoreticalMaxScoreSum === 0) {
+                return 0;
+            }
+
+            // スコアを理論上の最大スコアで正規化
+            return score / theoreticalMaxScoreSum;
         }
 
         // 配役を決定
@@ -879,6 +895,13 @@
                 p.textContent = `${player}: ${assignments[player]}`;
                 resultsDiv.appendChild(p);
             }
+
+            const finalScore = calculate_score(assignments, preferencesForAlgorithm);
+            const scoreP = document.createElement('p');
+            // クラス名を変更して、フォントサイズと色を調整し、より控えめにする
+            scoreP.className = 'mt-4 text-sm text-gray-600'; 
+            scoreP.textContent = `スコア: ${finalScore.toFixed(3)}`; // テキストを「スコア:」に変更
+            resultsDiv.appendChild(scoreP);
         }
 
         // 初期ロード時にローカルストレージからデータを読み込む
