@@ -100,7 +100,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background-color: #e0e0e0; /* より明るいグレー */
+            /* background-color: #e0e0e0; */ /* より明るいグレー */ /* REMOVED */
             padding: 12px 18px; /* パディングを増やす */
             border-radius: 8px;
             margin-bottom: 8px;
@@ -120,7 +120,7 @@
         }
         .player-item span, .character-item span {
             font-weight: 500;
-            color: #333;
+            /* color: #333; */ /* REMOVED */
         }
         .player-item button, .character-item button {
             background-color: #d32f2f; /* Material Red */
@@ -193,8 +193,8 @@
         }
 
         .preference-item {
-            background-color: #2196F3; /* Material Blue */
-            color: white;
+            /* background-color: #2196F3; */ /* Material Blue */ /* REMOVED */
+            /* color: white; */ /* REMOVED */
             padding: 10px 14px; /* パディングを調整 */
             border-radius: 6px;
             cursor: grab;
@@ -307,7 +307,8 @@
                     <button onclick="addPlayer()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300">追加</button>
                 </div>
                 <div id="playerList" class="space-y-2" ondragover="handlePlayerDragOver(event)" ondrop="handlePlayerDrop(event)">
-                    </div>
+                    <!-- Players will be listed here -->
+                </div>
             </div>
         </div>
 
@@ -322,7 +323,8 @@
                     <button onclick="addCharacter()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300">追加</button>
                 </div>
                 <div id="characterList" class="space-y-2">
-                    </div>
+                    <!-- Characters will be listed here -->
+                </div>
             </div>
         </div>
 
@@ -330,7 +332,8 @@
             <h2>配役希望のドラッグ＆ドロップ</h2>
             <p class="text-gray-600 mb-4">各プレイヤーのキャラクター希望順位を、ドラッグ&ドロップで<strong class="font-bold">左から優先度の高い順</strong>に並べ替えてください。</p>
             <div id="playerPreferencesContainer">
-                </div>
+                <!-- Player preference sections will be dynamically added here -->
+            </div>
         </div>
 
         <div class="button-group flex justify-center mt-6">
@@ -364,7 +367,8 @@
     <script>
         // グローバル変数
         let players = [];
-        let characters = [];
+        // characters配列はオブジェクトの配列になります: [{ name: "Char1", bgColor: "hsl(...)", textColor: "black/white" }]
+        let characters = []; 
         let playerPreferences = {}; // { player1: [charA, charB], player2: [charC, charA] }
         let displayPreferenceRank = true; // 希望順位表示のON/OFF
         let displayScore = true; // スコア表示のON/OFF
@@ -374,6 +378,7 @@
         // ローカルストレージにデータを保存する関数
         function saveDataToLocalStorage() {
             localStorage.setItem('roleAssignmentPlayers', JSON.stringify(players));
+            // characters配列はオブジェクトになったので、そのままJSON.stringify
             localStorage.setItem('roleAssignmentCharacters', JSON.stringify(characters));
             localStorage.setItem('roleAssignmentPreferences', JSON.stringify(playerPreferences));
             localStorage.setItem('roleAssignmentDisplayPreferenceRank', JSON.stringify(displayPreferenceRank)); // 希望順位表示設定を保存
@@ -396,7 +401,24 @@
                 players = JSON.parse(storedPlayers);
             }
             if (storedCharacters) {
-                characters = JSON.parse(storedCharacters);
+                const parsedCharacters = JSON.parse(storedCharacters);
+                characters = parsedCharacters.map(char => {
+                    if (typeof char === 'string') {
+                        // Old format: just a string. Convert to new object format.
+                        const newColor = generateCharacterColor();
+                        return { name: char, bgColor: newColor.bgColor, textColor: newColor.textColor };
+                    } else if (typeof char === 'object' && char !== null && typeof char.name === 'string') {
+                        // New format, but check for missing color properties
+                        if (!char.bgColor || !char.textColor) {
+                            const newColor = generateCharacterColor();
+                            char.bgColor = newColor.bgColor;
+                            char.textColor = newColor.textColor;
+                        }
+                        return char; // Valid object, return as is
+                    }
+                    // Invalid or malformed entry, return null to be filtered out
+                    return null;
+                }).filter(char => char !== null); // Filter out any nulls (invalid entries)
             }
             if (storedPreferences) {
                 playerPreferences = JSON.parse(storedPreferences);
@@ -434,6 +456,66 @@
             document.getElementById('messageBox').style.display = 'none';
         }
 
+        /**
+         * HSLカラーを生成し、そのカラーに対する最適なテキストカラー（黒または白）を決定します。
+         * @returns {{bgColor: string, textColor: string}} 生成された背景色と推奨されるテキストカラー
+         */
+        function generateCharacterColor() {
+            const hue = Math.floor(Math.random() * 360); // 0-359のランダムな色相
+            const saturation = 60 + Math.floor(Math.random() * 20); // 60-79%の彩度
+            const lightness = 40 + Math.floor(Math.random() * 30); // 40-69%の明度
+
+            const bgColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+            
+            // HSLをRGBに変換して輝度を計算し、コントラストの良いテキストカラーを決定
+            const h = hue / 360;
+            const s = saturation / 100;
+            const l = lightness / 100;
+
+            let r, g, b;
+
+            if (s === 0) {
+                r = g = b = l; // 無彩色の場合
+            } else {
+                const hue2rgb = (p, q, t) => {
+                    if (t < 0) t += 1;
+                    if (t > 1) t -= 1;
+                    if (t < 1 / 6) return p + (q - p) * 6 * t;
+                    if (t < 1 / 2) return q;
+                    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+                    return p;
+                };
+
+                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                const p = 2 * l - q;
+                r = hue2rgb(p, q, h + 1 / 3);
+                g = hue2rgb(p, q, h);
+                b = hue2rgb(p, q, h - 1 / 3);
+            }
+
+            const R = Math.round(r * 255);
+            const G = Math.round(g * 255);
+            const B = Math.round(b * 255);
+
+            // 輝度を計算 (WCAG 2.0に基づく)
+            const getLuminance = (r, g, b) => {
+                const a = [r, g, b].map(v => {
+                    v /= 255;
+                    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+                });
+                return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+            };
+
+            const luminance = getLuminance(R, G, B);
+            // 輝度が閾値より高い場合は黒、低い場合は白のテキストを使用
+            const textColor = luminance > 0.5 ? 'black' : 'white'; 
+
+            return {
+                bgColor: bgColor,
+                textColor: textColor
+            };
+        }
+
         // プレイヤーを追加
         function addPlayer() {
             const playerNameInput = document.getElementById('playerName');
@@ -441,7 +523,7 @@
             if (playerName && !players.includes(playerName)) {
                 players.push(playerName);
                 // 新しいプレイヤーの初期希望は、既存の全キャラクターをコピー
-                playerPreferences[playerName] = [...characters]; 
+                playerPreferences[playerName] = characters.map(charObj => charObj.name); 
                 saveDataToLocalStorage(); // データを保存
                 renderPlayers();
                 renderPlayerPreferences();
@@ -493,8 +575,9 @@
         function addCharacter() {
             const characterNameInput = document.getElementById('characterName');
             const characterName = characterNameInput.value.trim();
-            if (characterName && !characters.includes(characterName)) {
-                characters.push(characterName);
+            if (characterName && !characters.some(char => char.name === characterName)) { // Check if name exists
+                const newColor = generateCharacterColor(); // 色を生成
+                characters.push({ name: characterName, bgColor: newColor.bgColor, textColor: newColor.textColor });
                 // 各プレイヤーの希望リストに新しいキャラクターを追加
                 for (const player in playerPreferences) {
                     // 既にキャラクターが存在しない場合のみ追加
@@ -506,7 +589,7 @@
                 renderCharacters();
                 renderPlayerPreferences();
                 characterNameInput.value = '';
-            } else if (characterName && characters.includes(characterName)) {
+            } else if (characterName && characters.some(char => char.name === characterName)) {
                 showMessageBox('そのキャラクターはすでに存在します。');
             } else {
                 showMessageBox('キャラクター名を入力してください。');
@@ -515,7 +598,7 @@
 
         // キャラクターを削除
         function removeCharacter(name) {
-            characters = characters.filter(c => c !== name);
+            characters = characters.filter(c => c.name !== name); // オブジェクトでフィルタリング
             // 各プレイヤーの希望リストから削除されたキャラクターを削除
             for (const player in playerPreferences) {
                 playerPreferences[player] = playerPreferences[player].filter(c => c !== name);
@@ -529,12 +612,14 @@
         function renderCharacters() {
             const characterListDiv = document.getElementById('characterList');
             characterListDiv.innerHTML = '';
-            characters.forEach(character => {
+            characters.forEach(charObj => { // キャラクターオブジェクトを反復処理
                 const characterItem = document.createElement('div');
                 characterItem.className = 'character-item';
+                characterItem.style.backgroundColor = charObj.bgColor; // 背景色を適用
+                characterItem.style.color = charObj.textColor; // 文字色を適用
                 characterItem.innerHTML = `
-                    <span>${character}</span>
-                    <button onclick="removeCharacter('${character}')">削除</button>
+                    <span>${charObj.name}</span>
+                    <button onclick="removeCharacter('${charObj.name}')">削除</button>
                 `;
                 characterListDiv.appendChild(characterItem);
             });
@@ -551,28 +636,37 @@
                 playerPrefDiv.innerHTML = `
                     <h3>${player}の希望順位</h3>
                     <div id="prefList-${player}" class="preference-list" ondragover="handleCharacterDragOver(event)" ondrop="handleCharacterDrop(event, '${player}')">
-                        </div>
+                        <!-- Draggable characters will go here -->
+                    </div>
                 `;
                 container.appendChild(playerPrefDiv);
 
                 const prefList = document.getElementById(`prefList-${player}`);
                 // プレイヤーの希望リストにないキャラクターを追加する
                 const existingPreferences = playerPreferences[player] || [];
-                const allCharactersSet = new Set(characters);
-                const missingCharacters = [...allCharactersSet].filter(char => !existingPreferences.includes(char));
+                
+                // 現在の全キャラクターがプレイヤーの希望に含まれていることを確認し、順序を維持
+                // charactersはオブジェクトの配列、existingPreferencesは名前の配列なので、マップして比較
+                const currentCharacterNames = characters.map(charObj => charObj.name);
+                const updatedPreferences = existingPreferences.filter(name => currentCharacterNames.includes(name));
+                const missingCharacters = currentCharacterNames.filter(name => !updatedPreferences.includes(name));
 
-                // 既存のキャラクター順位を維持しつつ、不足しているキャラクターを最後に追加
-                playerPreferences[player] = [...existingPreferences, ...missingCharacters];
+                playerPreferences[player] = [...updatedPreferences, ...missingCharacters];
 
-                playerPreferences[player].forEach(char => {
-                    const charItem = document.createElement('div');
-                    charItem.className = 'preference-item';
-                    charItem.draggable = true;
-                    charItem.textContent = char;
-                    charItem.dataset.character = char; // キャラクター名をデータ属性に保存
-                    charItem.ondragstart = handleCharacterDragStart;
-                    charItem.ondragend = handleCharacterDragEnd;
-                    prefList.appendChild(charItem);
+                playerPreferences[player].forEach(charName => {
+                    const charObj = characters.find(c => c.name === charName); // キャラクターオブジェクトを見つけて色を取得
+                    if (charObj) { // キャラクターオブジェクトが存在する場合のみレンダリング
+                        const charItem = document.createElement('div');
+                        charItem.className = 'preference-item';
+                        charItem.draggable = true;
+                        charItem.textContent = charObj.name;
+                        charItem.dataset.character = charObj.name; // キャラクター名をデータ属性に保存
+                        charItem.style.backgroundColor = charObj.bgColor; // 背景色を適用
+                        charItem.style.color = charObj.textColor; // 文字色を適用
+                        charItem.ondragstart = handleCharacterDragStart;
+                        charItem.ondragend = handleCharacterDragEnd;
+                        prefList.appendChild(charItem);
+                    }
                 });
             });
         }
@@ -777,7 +871,7 @@
 
             for (const player in roles) {
                 const role = roles[player];
-                const characters = preferences[player];
+                const characters = preferences[player]; // preferences[player] はキャラクター名の配列
                 const num_characters = characters.length;
                 const num_player = player_list.indexOf(player); // ここでplayers配列の順序を使用
                 const num_character = characters.indexOf(role);
@@ -830,7 +924,8 @@
                 // 希望キャラクターが全て埋まっている、または希望リストにないキャラクターを割り当てる場合
                 if (!assigned) {
                     // まだ割り当てられていないキャラクターの中から選ぶ
-                    const unassignedChars = characters.filter(char => !assigned_roles_initial.has(char));
+                    // charactersはオブジェクトの配列なので、nameプロパティでフィルタリング
+                    const unassignedChars = characters.filter(charObj => !assigned_roles_initial.has(charObj.name)).map(charObj => charObj.name);
                     if (unassignedChars.length > 0) {
                         roles[player] = unassignedChars[0]; // 最初の利用可能なキャラクターを割り当てる
                         assigned_roles_initial.add(unassignedChars[0]);
@@ -860,12 +955,11 @@
             let best_roles = {};
             let best_score = -Infinity;
 
-            // 利用可能なキャラクターのユニークなリストを取得
-            // preferencesの値（希望キャラクターの配列）を平坦化し、Setで重複を排除して配列に戻す
-            const available_characters = Array.from(new Set(Object.values(preferences).flat()));
+            // 利用可能なキャラクターのユニークなリストを取得 (名前のみ)
+            const available_character_names = Array.from(new Set(characters.map(charObj => charObj.name)));
 
-            if (currentPlayers.length === available_characters.length) {
-                 for (const perm of permutations(available_characters)) { // available_charactersの順列
+            if (currentPlayers.length === available_character_names.length) {
+                 for (const perm of permutations(available_character_names)) { // available_character_namesの順列
                     const trial_roles = {};
                     for (let i = 0; i < currentPlayers.length; i++) {
                         trial_roles[currentPlayers[i]] = perm[i];
@@ -885,7 +979,7 @@
             } else {
                 // プレイヤー数とキャラクター数が異なる場合（または一致していても、順列で全てを網羅できない複雑なケース）
                 // バックトラッキングによる探索
-                function findBestAssignment(playerIndex, currentRoles, assignedChars) {
+                function findBestAssignment(playerIndex, currentRoles, assignedCharNames) {
                     // 全てのプレイヤーにキャラクターを割り当てたらスコアを評価
                     if (playerIndex === currentPlayers.length) {
                         if (!exist_unhappy(currentRoles)) {
@@ -899,20 +993,20 @@
                     }
 
                     const currentPlayer = currentPlayers[playerIndex];
-                    const playerPreferredChars = preferences[currentPlayer];
+                    const playerPreferredCharNames = preferences[currentPlayer];
 
                     // このプレイヤーの希望リストをループ
-                    for (const char of playerPreferredChars) {
+                    for (const charName of playerPreferredCharNames) {
                         // そのキャラクターがまだ割り当てられていない場合
-                        if (!assignedChars.has(char)) {
-                            currentRoles[currentPlayer] = char; // キャラクターを割り当て
-                            assignedChars.add(char); // 割り当て済みに追加
+                        if (!assignedCharNames.has(charName)) {
+                            currentRoles[currentPlayer] = charName; // キャラクターを割り当て
+                            assignedCharNames.add(charName); // 割り当て済みに追加
                             
                             // 次のプレイヤーに移動
-                            findBestAssignment(playerIndex + 1, currentRoles, assignedChars);
+                            findBestAssignment(playerIndex + 1, currentRoles, assignedCharNames);
                             
                             // バックトラック：割り当てを解除して次の選択肢を試す
-                            assignedChars.delete(char);
+                            assignedCharNames.delete(charName);
                             delete currentRoles[currentPlayer];
                         }
                     }
@@ -920,14 +1014,14 @@
                     // もし、プレイヤーの希望リストのキャラクターが全て割り当てられていて、かつ他の利用可能なキャラクターがある場合
                     // または、プレイヤーの希望リストのキャラクターが全て割り当てられていて、割り当てられていないキャラクターが存在する場合
                     // プレイヤーの希望リスト以外のキャラクターを割り当てる試行を行う
-                    const allAvailableChars = characters.filter(c => !assignedChars.has(c));
-                    if (Object.keys(currentRoles).length === playerIndex && allAvailableChars.length > 0) {
+                    const allAvailableCharNames = characters.filter(charObj => !assignedCharNames.has(charObj.name)).map(charObj => charObj.name);
+                    if (Object.keys(currentRoles).length === playerIndex && allAvailableCharNames.length > 0) {
                         // 希望リストにないが、まだ割り当てられていないキャラクターの中から一つ割り当てる
-                        const charToAssign = allAvailableChars[0];
-                        currentRoles[currentPlayer] = charToAssign;
-                        assignedChars.add(charToAssign);
-                        findBestAssignment(playerIndex + 1, currentRoles, assignedChars);
-                        assignedChars.delete(charToAssign);
+                        const charNameToAssign = allAvailableCharNames[0];
+                        currentRoles[currentPlayer] = charNameToAssign;
+                        assignedCharNames.add(charNameToAssign);
+                        findBestAssignment(playerIndex + 1, currentRoles, assignedCharNames);
+                        assignedCharNames.delete(charNameToAssign);
                         delete currentRoles[currentPlayer];
                     }
                 }
@@ -946,23 +1040,23 @@
             } else if (Object.keys(best_roles).length === 0) {
                 // 最適化が全く行われなかった場合、初期配役ロジックに近い形で最終配役を生成
                 let finalRoles = {};
-                let usedCharacters = new Set();
+                let usedCharacterNames = new Set();
                 for (const player of currentPlayers) {
                     let assigned = false;
-                    for (const char of preferences[player]) {
-                        if (!usedCharacters.has(char)) {
-                            finalRoles[player] = char;
-                            usedCharacters.add(char);
+                    for (const charName of preferences[player]) {
+                        if (!usedCharacterNames.has(charName)) {
+                            finalRoles[player] = charName;
+                            usedCharacterNames.add(charName);
                             assigned = true;
                             break;
                         }
                     }
                     if (!assigned) {
                         // 希望リストのキャラクターが全て割り当て済みの場合、まだ割り当てられていないキャラクターから選ぶ
-                        const remainingChars = characters.filter(c => !usedCharacters.has(c));
-                        if (remainingChars.length > 0) {
-                            finalRoles[player] = remainingChars[0];
-                            usedCharacters.add(remainingChars[0]);
+                        const remainingCharNames = characters.filter(charObj => !usedCharacterNames.has(charObj.name)).map(charObj => charObj.name);
+                        if (remainingCharNames.length > 0) {
+                            finalRoles[player] = remainingCharNames[0];
+                            usedCharacterNames.add(remainingCharNames[0]);
                         } else {
                             // 全てのキャラクターが割り当て済みの場合、プレイヤーの希望リストの最初のキャラクターを割り当てる
                             // （これはスコアが低くなる可能性が高いが、強制的に割り当てるため）
