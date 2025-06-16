@@ -278,6 +278,7 @@
         .collapsible-content.collapsed {
             max-height: 0;
             padding-top: 0;
+            margin-bottom: 0; /* 折り畳み時に余分なスペースをなくす */
         }
         /* 折り畳みアイコンのスタイル */
         .toggle-icon {
@@ -306,8 +307,7 @@
                     <button onclick="addPlayer()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300">追加</button>
                 </div>
                 <div id="playerList" class="space-y-2" ondragover="handlePlayerDragOver(event)" ondrop="handlePlayerDrop(event)">
-                    <!-- Players will be listed here -->
-                </div>
+                    </div>
             </div>
         </div>
 
@@ -322,8 +322,7 @@
                     <button onclick="addCharacter()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300">追加</button>
                 </div>
                 <div id="characterList" class="space-y-2">
-                    <!-- Characters will be listed here -->
-                </div>
+                    </div>
             </div>
         </div>
 
@@ -331,28 +330,26 @@
             <h2>配役希望のドラッグ＆ドロップ</h2>
             <p class="text-gray-600 mb-4">各プレイヤーのキャラクター希望順位を、ドラッグ&ドロップで<strong class="font-bold">左から優先度の高い順</strong>に並べ替えてください。</p>
             <div id="playerPreferencesContainer">
-                <!-- Player preference sections will be dynamically added here -->
-            </div>
+                </div>
         </div>
 
         <div class="button-group flex justify-center mt-6">
             <button onclick="assignRolesHandler()" class="secondary">配役を決定</button>
         </div>
 
-        <div class="results-section mt-8">
-            <h2 class="flex items-center justify-between mb-4">
-                配役結果
-                <div class="flex items-center space-x-4">
-                    <label for="togglePreferenceRankDisplay" class="flex items-center text-sm font-normal text-gray-600 cursor-pointer">
-                        <input type="checkbox" id="togglePreferenceRankDisplay" class="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500" checked>
-                        希望順位を表示
-                    </label>
-                    <label for="toggleScoreDisplay" class="flex items-center text-sm font-normal text-gray-600 cursor-pointer">
-                        <input type="checkbox" id="toggleScoreDisplay" class="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500" checked>
-                        スコアを表示
-                    </label>
-                </div>
-            </h2>
+        <div class="display-settings flex justify-center mt-4 mb-6 space-x-6">
+            <label for="togglePreferenceRankDisplay" class="flex items-center text-sm font-normal text-gray-600 cursor-pointer">
+                <input type="checkbox" id="togglePreferenceRankDisplay" class="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500" checked>
+                希望順位を表示
+            </label>
+            <label for="toggleScoreDisplay" class="flex items-center text-sm font-normal text-gray-600 cursor-pointer">
+                <input type="checkbox" id="toggleScoreDisplay" class="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500" checked>
+                スコアを表示
+            </label>
+        </div>
+
+        <div class="results-section">
+            <h2>配役結果</h2>
             <div id="assignmentResults">
                 <p class="text-gray-500">上記ボタンをクリックすると結果が表示されます。</p>
             </div>
@@ -554,8 +551,7 @@
                 playerPrefDiv.innerHTML = `
                     <h3>${player}の希望順位</h3>
                     <div id="prefList-${player}" class="preference-list" ondragover="handleCharacterDragOver(event)" ondrop="handleCharacterDrop(event, '${player}')">
-                        <!-- Draggable characters will go here -->
-                    </div>
+                        </div>
                 `;
                 container.appendChild(playerPrefDiv);
 
