@@ -268,6 +268,27 @@
         .message-box button:hover {
             background-color: #45a049;
         }
+        /* 折り畳みコンテンツのスタイル */
+        .collapsible-content {
+            max-height: 1000px; /* コンテンツを表示するための十分な高さ */
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            padding-top: 15px; /* 折り畳み時にコンテンツが消える際のトップパディングを考慮 */
+        }
+        .collapsible-content.collapsed {
+            max-height: 0;
+            padding-top: 0;
+        }
+        /* 折り畳みアイコンのスタイル */
+        .toggle-icon {
+            transform: rotate(0deg);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+            margin-left: 10px;
+        }
+        .toggle-icon.collapsed {
+            transform: rotate(-90deg); /* 閉じた時にアイコンを回転 */
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-4">
@@ -275,24 +296,34 @@
         <h1>キャラクター配役最適化アプリ</h1>
 
         <div class="player-input-section">
-            <h2>プレイヤー設定 <span class="text-sm font-normal text-gray-500">(リストの<strong class="font-bold">上</strong>にあるプレイヤーほど、配役の優先度が高くなります。ドラッグして順序を調整してください。)</span></h2>
-            <div class="flex items-center space-x-2 mb-4">
-                <input type="text" id="playerName" placeholder="プレイヤー名を入力" class="flex-grow rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
-                <button onclick="addPlayer()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300">追加</button>
-            </div>
-            <div id="playerList" class="space-y-2" ondragover="handlePlayerDragOver(event)" ondrop="handlePlayerDrop(event)">
-                <!-- Players will be listed here -->
+            <h2 class="flex items-center justify-between cursor-pointer" onclick="toggleSection('player')">
+                プレイヤー設定 <span class="text-sm font-normal text-gray-500">(リストの<strong class="font-bold">上</strong>にあるプレイヤーほど、配役の優先度が高くなります。ドラッグして順序を調整してください。)</span>
+                <span id="playerToggleIcon" class="toggle-icon">▼</span>
+            </h2>
+            <div id="playerSectionContent" class="collapsible-content">
+                <div class="flex items-center space-x-2 mb-4">
+                    <input type="text" id="playerName" placeholder="プレイヤー名を入力" class="flex-grow rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                    <button onclick="addPlayer()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300">追加</button>
+                </div>
+                <div id="playerList" class="space-y-2" ondragover="handlePlayerDragOver(event)" ondrop="handlePlayerDrop(event)">
+                    <!-- Players will be listed here -->
+                </div>
             </div>
         </div>
 
         <div class="character-input-section">
-            <h2>キャラクター設定</h2>
-            <div class="flex items-center space-x-2 mb-4">
-                <input type="text" id="characterName" placeholder="キャラクター名を入力" class="flex-grow rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
-                <button onclick="addCharacter()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300">追加</button>
-            </div>
-            <div id="characterList" class="space-y-2">
-                <!-- Characters will be listed here -->
+            <h2 class="flex items-center justify-between cursor-pointer" onclick="toggleSection('character')">
+                キャラクター設定
+                <span id="characterToggleIcon" class="toggle-icon">▼</span>
+            </h2>
+            <div id="characterSectionContent" class="collapsible-content">
+                <div class="flex items-center space-x-2 mb-4">
+                    <input type="text" id="characterName" placeholder="キャラクター名を入力" class="flex-grow rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                    <button onclick="addCharacter()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300">追加</button>
+                </div>
+                <div id="characterList" class="space-y-2">
+                    <!-- Characters will be listed here -->
+                </div>
             </div>
         </div>
 
@@ -338,8 +369,10 @@
         let players = [];
         let characters = [];
         let playerPreferences = {}; // { player1: [charA, charB], player2: [charC, charA] }
-        let displayPreferenceRank = true; // 新しい設定: 希望順位表示のON/OFF
-        let displayScore = true; // 新しい設定: スコア表示のON/OFF
+        let displayPreferenceRank = true; // 希望順位表示のON/OFF
+        let displayScore = true; // スコア表示のON/OFF
+        let playerSectionCollapsed = false; // プレイヤー設定セクションの折り畳み状態
+        let characterSectionCollapsed = false; // キャラクター設定セクションの折り畳み状態
 
         // ローカルストレージにデータを保存する関数
         function saveDataToLocalStorage() {
@@ -348,6 +381,8 @@
             localStorage.setItem('roleAssignmentPreferences', JSON.stringify(playerPreferences));
             localStorage.setItem('roleAssignmentDisplayPreferenceRank', JSON.stringify(displayPreferenceRank)); // 希望順位表示設定を保存
             localStorage.setItem('roleAssignmentDisplayScore', JSON.stringify(displayScore)); // スコア表示設定を保存
+            localStorage.setItem('roleAssignmentPlayerSectionCollapsed', JSON.stringify(playerSectionCollapsed)); // プレイヤーセクションの折り畳み状態を保存
+            localStorage.setItem('roleAssignmentCharacterSectionCollapsed', JSON.stringify(characterSectionCollapsed)); // キャラクターセクションの折り畳み状態を保存
         }
 
         // ローカルストレージからデータをロードする関数
@@ -355,8 +390,10 @@
             const storedPlayers = localStorage.getItem('roleAssignmentPlayers');
             const storedCharacters = localStorage.getItem('roleAssignmentCharacters');
             const storedPreferences = localStorage.getItem('roleAssignmentPreferences');
-            const storedDisplayPreferenceRank = localStorage.getItem('roleAssignmentDisplayPreferenceRank'); // 希望順位表示設定をロード
-            const storedDisplayScore = localStorage.getItem('roleAssignmentDisplayScore'); // スコア表示設定をロード
+            const storedDisplayPreferenceRank = localStorage.getItem('roleAssignmentDisplayPreferenceRank');
+            const storedDisplayScore = localStorage.getItem('roleAssignmentDisplayScore');
+            const storedPlayerSectionCollapsed = localStorage.getItem('roleAssignmentPlayerSectionCollapsed');
+            const storedCharacterSectionCollapsed = localStorage.getItem('roleAssignmentCharacterSectionCollapsed');
 
             if (storedPlayers) {
                 players = JSON.parse(storedPlayers);
@@ -369,7 +406,6 @@
             }
             if (storedDisplayPreferenceRank !== null) {
                 displayPreferenceRank = JSON.parse(storedDisplayPreferenceRank);
-                // チェックボックスの状態を更新
                 const checkbox = document.getElementById('togglePreferenceRankDisplay');
                 if (checkbox) {
                     checkbox.checked = displayPreferenceRank;
@@ -377,11 +413,16 @@
             }
             if (storedDisplayScore !== null) {
                 displayScore = JSON.parse(storedDisplayScore);
-                // チェックボックスの状態を更新
                 const checkbox = document.getElementById('toggleScoreDisplay');
                 if (checkbox) {
                     checkbox.checked = displayScore;
                 }
+            }
+            if (storedPlayerSectionCollapsed !== null) {
+                playerSectionCollapsed = JSON.parse(storedPlayerSectionCollapsed);
+            }
+            if (storedCharacterSectionCollapsed !== null) {
+                characterSectionCollapsed = JSON.parse(storedCharacterSectionCollapsed);
             }
         }
 
@@ -939,7 +980,6 @@
             return best_roles;
         }
 
-
         // 配役処理を実行し、結果を表示
         function assignRolesHandler() {
             if (players.length === 0 || characters.length === 0) {
@@ -1001,6 +1041,48 @@
             }
         }
 
+        // セクションの表示/非表示を切り替える関数
+        function toggleSection(sectionType) {
+            const contentDiv = document.getElementById(`${sectionType}SectionContent`);
+            const toggleIcon = document.getElementById(`${sectionType}ToggleIcon`);
+
+            if (sectionType === 'player') {
+                playerSectionCollapsed = !playerSectionCollapsed;
+                if (playerSectionCollapsed) {
+                    contentDiv.classList.add('collapsed');
+                    toggleIcon.classList.add('collapsed');
+                } else {
+                    contentDiv.classList.remove('collapsed');
+                    toggleIcon.classList.remove('collapsed');
+                }
+                saveDataToLocalStorage();
+            } else if (sectionType === 'character') {
+                characterSectionCollapsed = !characterSectionCollapsed;
+                if (characterSectionCollapsed) {
+                    contentDiv.classList.add('collapsed');
+                    toggleIcon.classList.add('collapsed');
+                } else {
+                    contentDiv.classList.remove('collapsed');
+                    toggleIcon.classList.remove('collapsed');
+                }
+                saveDataToLocalStorage();
+            }
+        }
+
+        // セクションの初期状態を適用する関数
+        function applySectionState(sectionType, isCollapsed) {
+            const contentDiv = document.getElementById(`${sectionType}SectionContent`);
+            const toggleIcon = document.getElementById(`${sectionType}ToggleIcon`);
+            if (isCollapsed) {
+                contentDiv.classList.add('collapsed');
+                toggleIcon.classList.add('collapsed');
+            } else {
+                contentDiv.classList.remove('collapsed');
+                toggleIcon.classList.remove('collapsed');
+            }
+        }
+
+
         // 初期ロード時にローカルストレージからデータを読み込む
         document.addEventListener('DOMContentLoaded', () => {
             loadDataFromLocalStorage();
@@ -1029,6 +1111,10 @@
                     assignRolesHandler(); 
                 });
             }
+
+            // プレイヤー設定とキャラクター設定セクションの初期折り畳み状態を適用
+            applySectionState('player', playerSectionCollapsed);
+            applySectionState('character', characterSectionCollapsed);
         });
     </script>
 </body>
