@@ -309,7 +309,13 @@
         </div>
 
         <div class="results-section mt-8">
-            <h2>配役結果</h2>
+            <h2 class="flex items-center justify-between">
+                配役結果
+                <label for="togglePreferenceRankDisplay" class="flex items-center text-sm font-normal text-gray-600 cursor-pointer">
+                    <input type="checkbox" id="togglePreferenceRankDisplay" class="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500" checked>
+                    希望順位を表示
+                </label>
+            </h2>
             <div id="assignmentResults">
                 <p class="text-gray-500">上記ボタンをクリックすると結果が表示されます。</p>
             </div>
@@ -326,12 +332,14 @@
         let players = [];
         let characters = [];
         let playerPreferences = {}; // { player1: [charA, charB], player2: [charC, charA] }
+        let displayPreferenceRank = true; // 新しい設定: 希望順位表示のON/OFF
 
         // ローカルストレージにデータを保存する関数
         function saveDataToLocalStorage() {
             localStorage.setItem('roleAssignmentPlayers', JSON.stringify(players));
             localStorage.setItem('roleAssignmentCharacters', JSON.stringify(characters));
             localStorage.setItem('roleAssignmentPreferences', JSON.stringify(playerPreferences));
+            localStorage.setItem('roleAssignmentDisplayPreferenceRank', JSON.stringify(displayPreferenceRank)); // 設定を保存
         }
 
         // ローカルストレージからデータをロードする関数
@@ -339,6 +347,7 @@
             const storedPlayers = localStorage.getItem('roleAssignmentPlayers');
             const storedCharacters = localStorage.getItem('roleAssignmentCharacters');
             const storedPreferences = localStorage.getItem('roleAssignmentPreferences');
+            const storedDisplayPreferenceRank = localStorage.getItem('roleAssignmentDisplayPreferenceRank'); // 設定をロード
 
             if (storedPlayers) {
                 players = JSON.parse(storedPlayers);
@@ -348,6 +357,14 @@
             }
             if (storedPreferences) {
                 playerPreferences = JSON.parse(storedPreferences);
+            }
+            if (storedDisplayPreferenceRank !== null) {
+                displayPreferenceRank = JSON.parse(storedDisplayPreferenceRank);
+                // チェックボックスの状態を更新
+                const checkbox = document.getElementById('togglePreferenceRankDisplay');
+                if (checkbox) {
+                    checkbox.checked = displayPreferenceRank;
+                }
             }
         }
 
@@ -368,7 +385,8 @@
             const playerName = playerNameInput.value.trim();
             if (playerName && !players.includes(playerName)) {
                 players.push(playerName);
-                playerPreferences[playerName] = [...characters]; // 初期希望は全キャラクター
+                // 新しいプレイヤーの初期希望は、既存の全キャラクターをコピー
+                playerPreferences[playerName] = [...characters]; 
                 saveDataToLocalStorage(); // データを保存
                 renderPlayers();
                 renderPlayerPreferences();
@@ -484,6 +502,14 @@
                 container.appendChild(playerPrefDiv);
 
                 const prefList = document.getElementById(`prefList-${player}`);
+                // プレイヤーの希望リストにないキャラクターを追加する
+                const existingPreferences = playerPreferences[player] || [];
+                const allCharactersSet = new Set(characters);
+                const missingCharacters = [...allCharactersSet].filter(char => !existingPreferences.includes(char));
+
+                // 既存のキャラクター順位を維持しつつ、不足しているキャラクターを最後に追加
+                playerPreferences[player] = [...existingPreferences, ...missingCharacters];
+
                 playerPreferences[player].forEach(char => {
                     const charItem = document.createElement('div');
                     charItem.className = 'preference-item';
@@ -528,7 +554,7 @@
 
             // 別のプレイヤーの希望順位リストへのドロップを許可しない
             // ドラッグ中のアイテムの親要素とドロップ対象要素のIDを比較
-            if (draggable && draggable.closest('.player-preferences').querySelector('h3').textContent.replace('の希望順位', '').trim() !== targetList.closest('.player-preferences').querySelector('h3').textContent.replace('の希望順位', '').trim()) {
+            if (draggable && draggedCharacterSourcePlayer !== targetList.closest('.player-preferences').querySelector('h3').textContent.replace('の希望順位', '').trim()) {
                 event.dataTransfer.dropEffect = 'none'; // ドロップ不可を示す
                 return;
             } else {
@@ -747,12 +773,15 @@
                         break;
                     }
                 }
+                // 希望キャラクターが全て埋まっている、または希望リストにないキャラクターを割り当てる場合
                 if (!assigned) {
+                    // まだ割り当てられていないキャラクターの中から選ぶ
                     const unassignedChars = characters.filter(char => !assigned_roles_initial.has(char));
                     if (unassignedChars.length > 0) {
-                        roles[player] = unassignedChars[0];
+                        roles[player] = unassignedChars[0]; // 最初の利用可能なキャラクターを割り当てる
                         assigned_roles_initial.add(unassignedChars[0]);
                     } else {
+                        // 全てのキャラクターが割り当て済みの場合、希望リストの最後のキャラクターを割り当てる（望ましくないが、割り当てが必要な場合）
                         roles[player] = preferences[player][preferences[player].length - 1];
                     }
                 }
@@ -777,6 +806,8 @@
             let best_roles = {};
             let best_score = -Infinity;
 
+            // 利用可能なキャラクターのユニークなリストを取得
+            // preferencesの値（希望キャラクターの配列）を平坦化し、Setで重複を排除して配列に戻す
             const available_characters = Array.from(new Set(Object.values(preferences).flat()));
 
             if (currentPlayers.length === available_characters.length) {
@@ -798,7 +829,10 @@
                     }
                 }
             } else {
+                // プレイヤー数とキャラクター数が異なる場合（または一致していても、順列で全てを網羅できない複雑なケース）
+                // バックトラッキングによる探索
                 function findBestAssignment(playerIndex, currentRoles, assignedChars) {
+                    // 全てのプレイヤーにキャラクターを割り当てたらスコアを評価
                     if (playerIndex === currentPlayers.length) {
                         if (!exist_unhappy(currentRoles)) {
                             const current_score = calculate_score(currentRoles, preferences);
@@ -811,19 +845,42 @@
                     }
 
                     const currentPlayer = currentPlayers[playerIndex];
-                    for (const char of preferences[currentPlayer]) {
+                    const playerPreferredChars = preferences[currentPlayer];
+
+                    // このプレイヤーの希望リストをループ
+                    for (const char of playerPreferredChars) {
+                        // そのキャラクターがまだ割り当てられていない場合
                         if (!assignedChars.has(char)) {
-                            currentRoles[currentPlayer] = char;
-                            assignedChars.add(char);
+                            currentRoles[currentPlayer] = char; // キャラクターを割り当て
+                            assignedChars.add(char); // 割り当て済みに追加
+                            
+                            // 次のプレイヤーに移動
                             findBestAssignment(playerIndex + 1, currentRoles, assignedChars);
+                            
+                            // バックトラック：割り当てを解除して次の選択肢を試す
                             assignedChars.delete(char);
                             delete currentRoles[currentPlayer];
                         }
+                    }
+
+                    // もし、プレイヤーの希望リストのキャラクターが全て割り当てられていて、かつ他の利用可能なキャラクターがある場合
+                    // または、プレイヤーの希望リストのキャラクターが全て割り当てられていて、割り当てられていないキャラクターが存在する場合
+                    // プレイヤーの希望リスト以外のキャラクターを割り当てる試行を行う
+                    const allAvailableChars = characters.filter(c => !assignedChars.has(c));
+                    if (Object.keys(currentRoles).length === playerIndex && allAvailableChars.length > 0) {
+                        // 希望リストにないが、まだ割り当てられていないキャラクターの中から一つ割り当てる
+                        const charToAssign = allAvailableChars[0];
+                        currentRoles[currentPlayer] = charToAssign;
+                        assignedChars.add(charToAssign);
+                        findBestAssignment(playerIndex + 1, currentRoles, assignedChars);
+                        assignedChars.delete(charToAssign);
+                        delete currentRoles[currentPlayer];
                     }
                 }
                 findBestAssignment(0, {}, new Set());
             }
 
+            // 最適な配役が見つからなかった場合（全ての組み合わせが不満を生む場合など）、初期配役を返す
             if (Object.keys(best_roles).length === 0 && unhappy_initial) {
                  let initial_score = calculate_score(roles, preferences);
                  if (initial_score > best_score) {
@@ -833,6 +890,7 @@
                      best_roles = { ...roles };
                  }
             } else if (Object.keys(best_roles).length === 0) {
+                // 最適化が全く行われなかった場合、初期配役ロジックに近い形で最終配役を生成
                 let finalRoles = {};
                 let usedCharacters = new Set();
                 for (const player of currentPlayers) {
@@ -846,11 +904,14 @@
                         }
                     }
                     if (!assigned) {
+                        // 希望リストのキャラクターが全て割り当て済みの場合、まだ割り当てられていないキャラクターから選ぶ
                         const remainingChars = characters.filter(c => !usedCharacters.has(c));
                         if (remainingChars.length > 0) {
                             finalRoles[player] = remainingChars[0];
                             usedCharacters.add(remainingChars[0]);
                         } else {
+                            // 全てのキャラクターが割り当て済みの場合、プレイヤーの希望リストの最初のキャラクターを割り当てる
+                            // （これはスコアが低くなる可能性が高いが、強制的に割り当てるため）
                             finalRoles[player] = preferences[player][0];
                         }
                     }
@@ -887,12 +948,28 @@
 
             const assignments = assign_roles(preferencesForAlgorithm);
             const resultsDiv = document.getElementById('assignmentResults');
-            resultsDiv.innerHTML = ''; // 「決定された配役:」を削除するために初期化
+            resultsDiv.innerHTML = ''; // Clear existing results
 
             for (const player in assignments) {
+                const assignedCharacter = assignments[player];
+                const playerPrefList = playerPreferences[player];
+                
+                let rankText = '';
+                // displayPreferenceRankがtrueの場合のみ希望順位を表示
+                if (displayPreferenceRank) { 
+                    const preferenceRank = playerPrefList ? playerPrefList.indexOf(assignedCharacter) : -1;
+
+                    if (preferenceRank !== -1) {
+                        rankText = ` (希望順位: 第${preferenceRank + 1}位)`;
+                    } else {
+                        // 希望リストにない場合は、特別に表示
+                        rankText = ` (希望リスト外)`;
+                    }
+                }
+                
                 const p = document.createElement('p');
                 p.className = 'result-item';
-                p.textContent = `${player}: ${assignments[player]}`;
+                p.textContent = `${player}: ${assignedCharacter}${rankText}`;
                 resultsDiv.appendChild(p);
             }
 
@@ -910,6 +987,17 @@
             renderPlayers();
             renderCharacters();
             renderPlayerPreferences();
+
+            // 希望順位表示のチェックボックスのイベントリスナーを設定
+            const toggleCheckbox = document.getElementById('togglePreferenceRankDisplay');
+            if (toggleCheckbox) {
+                toggleCheckbox.addEventListener('change', (event) => {
+                    displayPreferenceRank = event.target.checked;
+                    saveDataToLocalStorage(); // 設定変更を保存
+                    // 設定が変更されたら、自動的に配役を再計算して表示を更新する
+                    assignRolesHandler(); 
+                });
+            }
         });
     </script>
 </body>
