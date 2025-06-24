@@ -1,11 +1,16 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>キャラクター配役最適化アプリ</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -33,7 +38,7 @@
             margin-bottom: 30px; /* 余白を増やす */
             text-align: center;
         }
-        .player-input-section, .character-input-section {
+        .player-input-section, .character-input-section, .preferences-section { /* preferences-sectionを追加 */
             margin-bottom: 25px;
             padding: 20px;
             background-color: #ffffff; /* 背景色を統一 */
@@ -46,6 +51,15 @@
             font-weight: 600;
             color: #212121; /* より濃い色 */
             margin-bottom: 15px;
+        }
+        /* Flexbox for h2 and toggle icon */
+        h2.collapsible-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding-bottom: 10px; /* Space between header and content */
+            margin-bottom: 0; /* Remove default margin */
         }
         label {
             display: block;
@@ -71,7 +85,7 @@
         .button-group button {
             background-color: #4285F4; /* Google Blue */
             color: white;
-            padding: 14px 24px; /* パディングを増やす */
+            padding: 14px 18px; /* アイコンのみなのでパディングを調整 */
             border: none;
             border-radius: 8px;
             cursor: pointer;
@@ -80,6 +94,16 @@
             transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             margin-right: 10px;
+            display: flex; /* アイコンを中央揃え */
+            align-items: center; /* アイコンを中央揃え */
+            justify-content: center; /* アイコンを中央揃え */
+        }
+        /* アイコンのみのボタンなので、マージンは不要 */
+        .button-group button i {
+            margin-right: 0; 
+        }
+        .button-group button:last-child {
+            margin-right: 0;
         }
         .button-group button:hover {
             background-color: #3367D6; /* 少し濃く */
@@ -100,7 +124,6 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            /* background-color: #e0e0e0; */ /* より明るいグレー */ /* REMOVED */
             padding: 12px 18px; /* パディングを増やす */
             border-radius: 8px;
             margin-bottom: 8px;
@@ -120,7 +143,6 @@
         }
         .player-item span, .character-item span {
             font-weight: 500;
-            /* color: #333; */ /* REMOVED */
         }
         .player-item button, .character-item button {
             background-color: #d32f2f; /* Material Red */
@@ -132,6 +154,12 @@
             font-size: 0.9rem;
             transition: background-color 0.3s ease, transform 0.2s ease;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex; /* アイコンを中央揃え */
+            align-items: center; /* アイコンを中央揃え */
+            justify-content: center; /* アイコンを中央揃え */
+        }
+        .player-item button i, .character-item button i {
+            margin: 0; /* アイコンに余分なマージンがないことを確認 */
         }
         .player-item button:hover, .character-item button:hover {
             background-color: #b71c1c; /* Darker Red */
@@ -193,8 +221,6 @@
         }
 
         .preference-item {
-            /* background-color: #2196F3; */ /* Material Blue */ /* REMOVED */
-            /* color: white; */ /* REMOVED */
             padding: 10px 14px; /* パディングを調整 */
             border-radius: 6px;
             cursor: grab;
@@ -202,7 +228,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .preference-item:hover {
-            background-color: #1976D2; /* Darker blue */
+            /* background-color will be set by JS dynamically */
             transform: translateY(-1px);
             box-shadow: 0 3px 6px rgba(0,0,0,0.15);
         }
@@ -297,56 +323,56 @@
         <h1>キャラクター配役最適化アプリ</h1>
 
         <div class="player-input-section">
-            <h2 class="flex items-center justify-between cursor-pointer" onclick="toggleSection('player')">
+            <h2 class="collapsible-header" onclick="toggleSection('player')">
                 プレイヤー設定 <span class="text-sm font-normal text-gray-500">(リストの<strong class="font-bold">上</strong>にあるプレイヤーほど、配役の優先度が高くなります。ドラッグして順序を調整してください。)</span>
                 <span id="playerToggleIcon" class="toggle-icon">▼</span>
             </h2>
             <div id="playerSectionContent" class="collapsible-content">
                 <div class="flex items-center space-x-2 mb-4">
                     <input type="text" id="playerName" placeholder="プレイヤー名を入力" class="flex-grow rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
-                    <button onclick="addPlayer()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300">追加</button>
+                    <button onclick="addPlayer()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300" title="プレイヤーを追加"><i class="fas fa-plus"></i></button>
+                    <button onclick="shufflePlayers()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300" title="プレイヤーの優先度をランダムにシャッフル"><i class="fas fa-shuffle"></i></button>
                 </div>
-                <div id="playerList" class="space-y-2" ondragover="handlePlayerDragOver(event)" ondrop="handlePlayerDrop(event)">
-                    <!-- Players will be listed here -->
-                </div>
+                <div id="playerList" class="space-y-2" ondragover="handlePlayerDragOver(event)" ondrop="handlePlayerDrop(event)"></div>
             </div>
         </div>
 
         <div class="character-input-section">
-            <h2 class="flex items-center justify-between cursor-pointer" onclick="toggleSection('character')">
+            <h2 class="collapsible-header" onclick="toggleSection('character')">
                 キャラクター設定
                 <span id="characterToggleIcon" class="toggle-icon">▼</span>
             </h2>
             <div id="characterSectionContent" class="collapsible-content">
                 <div class="flex items-center space-x-2 mb-4">
                     <input type="text" id="characterName" placeholder="キャラクター名を入力" class="flex-grow rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
-                    <button onclick="addCharacter()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300">追加</button>
+                    <button onclick="addCharacter()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300" title="キャラクターを追加"><i class="fas fa-plus"></i></button>
                 </div>
-                <div id="characterList" class="space-y-2">
-                    <!-- Characters will be listed here -->
-                </div>
+                <div id="characterList" class="space-y-2"></div>
             </div>
         </div>
 
         <div class="preferences-section">
-            <h2>配役希望のドラッグ＆ドロップ</h2>
-            <p class="text-gray-600 mb-4">各プレイヤーのキャラクター希望順位を、ドラッグ&ドロップで<strong class="font-bold">左から優先度の高い順</strong>に並べ替えてください。</p>
-            <div id="playerPreferencesContainer">
-                <!-- Player preference sections will be dynamically added here -->
+            <h2 class="collapsible-header" onclick="toggleSection('preferences')">
+                配役希望のドラッグ＆ドロップ
+                <span id="preferencesToggleIcon" class="toggle-icon">▼</span>
+            </h2>
+            <div id="preferencesSectionContent" class="collapsible-content">
+                <p class="text-gray-600 mb-4">各プレイヤーのキャラクター希望順位を、ドラッグ&amp;ドロップで<strong class="font-bold">左から優先度の高い順</strong>に並べ替えてください。</p>
+                <div id="playerPreferencesContainer"></div>
             </div>
         </div>
 
         <div class="button-group flex justify-center mt-6">
-            <button onclick="assignRolesHandler()" class="secondary">配役を決定</button>
+            <button onclick="assignRolesAndRender()" class="secondary">配役を決定</button>
         </div>
 
         <div class="display-settings flex justify-center mt-4 mb-6 space-x-6">
             <label for="togglePreferenceRankDisplay" class="flex items-center text-sm font-normal text-gray-600 cursor-pointer">
-                <input type="checkbox" id="togglePreferenceRankDisplay" class="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500" checked>
+                <input type="checkbox" id="togglePreferenceRankDisplay" class="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500">
                 希望順位を表示
             </label>
             <label for="toggleScoreDisplay" class="flex items-center text-sm font-normal text-gray-600 cursor-pointer">
-                <input type="checkbox" id="toggleScoreDisplay" class="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500" checked>
+                <input type="checkbox" id="toggleScoreDisplay" class="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500">
                 スコアを表示
             </label>
         </div>
@@ -374,6 +400,8 @@
         let displayScore = true; // スコア表示のON/OFF
         let playerSectionCollapsed = false; // プレイヤー設定セクションの折り畳み状態
         let characterSectionCollapsed = false; // キャラクター設定セクションの折り畳み状態
+        let preferencesSectionCollapsed = false; // 配役希望セクションの折り畳み状態
+        let lastAssignments = null; // 最後に計算された配役結果を保存する変数
 
         // ローカルストレージにデータを保存する関数
         function saveDataToLocalStorage() {
@@ -385,6 +413,7 @@
             localStorage.setItem('roleAssignmentDisplayScore', JSON.stringify(displayScore)); // スコア表示設定を保存
             localStorage.setItem('roleAssignmentPlayerSectionCollapsed', JSON.stringify(playerSectionCollapsed)); // プレイヤーセクションの折り畳み状態を保存
             localStorage.setItem('roleAssignmentCharacterSectionCollapsed', JSON.stringify(characterSectionCollapsed)); // キャラクターセクションの折り畳み状態を保存
+            localStorage.setItem('roleAssignmentPreferencesSectionCollapsed', JSON.stringify(preferencesSectionCollapsed)); // 配役希望セクションの折り畳み状態を保存
         }
 
         // ローカルストレージからデータをロードする関数
@@ -396,6 +425,7 @@
             const storedDisplayScore = localStorage.getItem('roleAssignmentDisplayScore');
             const storedPlayerSectionCollapsed = localStorage.getItem('roleAssignmentPlayerSectionCollapsed');
             const storedCharacterSectionCollapsed = localStorage.getItem('roleAssignmentCharacterSectionCollapsed');
+            const storedPreferencesSectionCollapsed = localStorage.getItem('roleAssignmentPreferencesSectionCollapsed');
 
             if (storedPlayers) {
                 players = JSON.parse(storedPlayers);
@@ -425,23 +455,18 @@
             }
             if (storedDisplayPreferenceRank !== null) {
                 displayPreferenceRank = JSON.parse(storedDisplayPreferenceRank);
-                const checkbox = document.getElementById('togglePreferenceRankDisplay');
-                if (checkbox) {
-                    checkbox.checked = displayPreferenceRank;
-                }
             }
             if (storedDisplayScore !== null) {
                 displayScore = JSON.parse(storedDisplayScore);
-                const checkbox = document.getElementById('toggleScoreDisplay');
-                if (checkbox) {
-                    checkbox.checked = displayScore;
-                }
             }
             if (storedPlayerSectionCollapsed !== null) {
                 playerSectionCollapsed = JSON.parse(storedPlayerSectionCollapsed);
             }
             if (storedCharacterSectionCollapsed !== null) {
                 characterSectionCollapsed = JSON.parse(storedCharacterSectionCollapsed);
+            }
+            if (storedPreferencesSectionCollapsed !== null) {
+                preferencesSectionCollapsed = JSON.parse(storedPreferencesSectionCollapsed);
             }
         }
 
@@ -552,23 +577,40 @@
                 const playerItem = document.createElement('div');
                 playerItem.className = 'player-item';
                 playerItem.draggable = true; // Make player items draggable
-                playerItem.textContent = player; // Set player name as text content
                 playerItem.dataset.player = player; // Store player name in data attribute
                 playerItem.ondragstart = handlePlayerDragStart;
                 playerItem.ondragend = handlePlayerDragEnd;
 
                 const deleteButton = document.createElement('button');
-                deleteButton.textContent = '削除';
+                // 削除ボタンをアイコンで表示し、ツールチップを設定
+                deleteButton.innerHTML = '<i class="fas fa-trash"></i>'; 
+                deleteButton.title = '削除'; // ツールチップ
                 deleteButton.onclick = () => removePlayer(player);
 
                 const span = document.createElement('span'); // Wrap player name in a span for consistent styling
                 span.textContent = player;
-                playerItem.innerHTML = ''; // Clear existing content to append new elements
                 playerItem.appendChild(span);
                 playerItem.appendChild(deleteButton);
 
                 playerListDiv.appendChild(playerItem);
             });
+        }
+
+        // プレイヤーの優先度をシャッフルする
+        function shufflePlayers() {
+            if (players.length === 0) {
+                showMessageBox('シャッフルするプレイヤーがいません。');
+                return;
+            }
+            // Fisher-Yates shuffle algorithm
+            for (let i = players.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [players[i], players[j]] = [players[j], players[i]]; // Swap elements
+            }
+            saveDataToLocalStorage();
+            renderPlayers();
+            renderPlayerPreferences(); // プレイヤーの順序が変わったので希望設定も再レンダリング
+            showMessageBox('プレイヤーの優先順位をシャッフルしました。');
         }
 
         // キャラクターを追加
@@ -619,7 +661,7 @@
                 characterItem.style.color = charObj.textColor; // 文字色を適用
                 characterItem.innerHTML = `
                     <span>${charObj.name}</span>
-                    <button onclick="removeCharacter('${charObj.name}')">削除</button>
+                    <button onclick="removeCharacter('${charObj.name}')" title="削除"><i class="fas fa-trash"></i></button>
                 `;
                 characterListDiv.appendChild(characterItem);
             });
@@ -931,7 +973,14 @@
                         assigned_roles_initial.add(unassignedChars[0]);
                     } else {
                         // 全てのキャラクターが割り当て済みの場合、希望リストの最後のキャラクターを割り当てる（望ましくないが、割り当てが必要な場合）
-                        roles[player] = preferences[player][preferences[player].length - 1];
+                        // ただし、希望リスト自体が空の場合もあるため、その場合は割り当て不能
+                        if (preferences[player] && preferences[player].length > 0) {
+                             roles[player] = preferences[player][preferences[player].length - 1];
+                        } else {
+                             // 希望リストも空で、割り当て可能なキャラクターもいない場合
+                             // これはエラー状態と考えるべきだが、ここでは単純に割り当てなしとする
+                             roles[player] = '未割り当て'; 
+                        }
                     }
                 }
             }
@@ -947,7 +996,7 @@
 
             let unhappy_initial = exist_unhappy(roles);
 
-            if (!unhappy_initial) {
+            if (!unhappy_initial && Object.keys(roles).length === currentPlayers.length) {
                 return roles;
             }
 
@@ -963,6 +1012,11 @@
                     const trial_roles = {};
                     for (let i = 0; i < currentPlayers.length; i++) {
                         trial_roles[currentPlayers[i]] = perm[i];
+                    }
+
+                    // 全てのプレイヤーにキャラクターが割り当てられていることを確認
+                    if (Object.keys(trial_roles).length !== currentPlayers.length) {
+                        continue;
                     }
 
                     if (exist_unhappy(trial_roles)) {
@@ -982,7 +1036,8 @@
                 function findBestAssignment(playerIndex, currentRoles, assignedCharNames) {
                     // 全てのプレイヤーにキャラクターを割り当てたらスコアを評価
                     if (playerIndex === currentPlayers.length) {
-                        if (!exist_unhappy(currentRoles)) {
+                        // 全てのプレイヤーにキャラクターが割り当てられていることを確認
+                        if (Object.keys(currentRoles).length === currentPlayers.length && !exist_unhappy(currentRoles)) {
                             const current_score = calculate_score(currentRoles, preferences);
                             if (current_score > best_score) {
                                 best_score = current_score;
@@ -993,7 +1048,7 @@
                     }
 
                     const currentPlayer = currentPlayers[playerIndex];
-                    const playerPreferredCharNames = preferences[currentPlayer];
+                    const playerPreferredCharNames = preferences[currentPlayer] || []; // 希望リストが空の場合を考慮
 
                     // このプレイヤーの希望リストをループ
                     for (const charName of playerPreferredCharNames) {
@@ -1011,39 +1066,37 @@
                         }
                     }
 
-                    // もし、プレイヤーの希望リストのキャラクターが全て割り当てられていて、かつ他の利用可能なキャラクターがある場合
-                    // または、プレイヤーの希望リストのキャラクターが全て割り当てられていて、割り当てられていないキャラクターが存在する場合
-                    // プレイヤーの希望リスト以外のキャラクターを割り当てる試行を行う
-                    const allAvailableCharNames = characters.filter(charObj => !assignedCharNames.has(charObj.name)).map(charObj => charObj.name);
-                    if (Object.keys(currentRoles).length === playerIndex && allAvailableCharNames.length > 0) {
+                    // 希望リストのキャラクターが全て割り当てられていない、または割り当てられていないキャラクターが存在する場合
+                    // プレイヤーの希望リスト以外の、まだ割り当てられていないキャラクターを割り当てる試行を行う
+                    const remainingAvailableCharNames = characters.filter(charObj => !assignedCharNames.has(charObj.name)).map(charObj => charObj.name);
+                    
+                    if (Object.keys(currentRoles).length === playerIndex && remainingAvailableCharNames.length > 0) {
                         // 希望リストにないが、まだ割り当てられていないキャラクターの中から一つ割り当てる
-                        const charNameToAssign = allAvailableCharNames[0];
+                        const charNameToAssign = remainingAvailableCharNames[0]; // 最初の利用可能なキャラクターを選択
                         currentRoles[currentPlayer] = charNameToAssign;
                         assignedCharNames.add(charNameToAssign);
                         findBestAssignment(playerIndex + 1, currentRoles, assignedCharNames);
                         assignedCharNames.delete(charNameToAssign);
                         delete currentRoles[currentPlayer];
                     }
+                    // ここで、playerIndexのプレイヤーに何も割り当てられないパスも考慮する必要があるかもしれません
+                    // (例えば、全てのキャラクターが割り当て済みで、このプレイヤーに割り当てられるものがない場合など)
+                    // しかし、現在のロジックでは、最終的に全てのプレイヤーに何らかのキャラクターが割り当てられるようにしています。
                 }
                 findBestAssignment(0, {}, new Set());
             }
 
             // 最適な配役が見つからなかった場合（全ての組み合わせが不満を生む場合など）、初期配役を返す
-            if (Object.keys(best_roles).length === 0 && unhappy_initial) {
-                 let initial_score = calculate_score(roles, preferences);
-                 if (initial_score > best_score) {
-                    best_score = initial_score;
-                    best_roles = { ...roles };
-                 } else if (Object.keys(best_roles).length === 0 && Object.keys(roles).length > 0) {
-                     best_roles = { ...roles };
-                 }
-            } else if (Object.keys(best_roles).length === 0) {
-                // 最適化が全く行われなかった場合、初期配役ロジックに近い形で最終配役を生成
+            // または、最善の配役が見つからなかった、かつ初期配役で全てのプレイヤーに割り当てられていない場合
+            if (Object.keys(best_roles).length === 0) {
                 let finalRoles = {};
                 let usedCharacterNames = new Set();
                 for (const player of currentPlayers) {
                     let assigned = false;
-                    for (const charName of preferences[player]) {
+                    const playerPrefList = preferences[player] || [];
+
+                    // プレイヤーの希望リストから優先的に割り当て
+                    for (const charName of playerPrefList) {
                         if (!usedCharacterNames.has(charName)) {
                             finalRoles[player] = charName;
                             usedCharacterNames.add(charName);
@@ -1051,6 +1104,7 @@
                             break;
                         }
                     }
+
                     if (!assigned) {
                         // 希望リストのキャラクターが全て割り当て済みの場合、まだ割り当てられていないキャラクターから選ぶ
                         const remainingCharNames = characters.filter(charObj => !usedCharacterNames.has(charObj.name)).map(charObj => charObj.name);
@@ -1060,42 +1114,34 @@
                         } else {
                             // 全てのキャラクターが割り当て済みの場合、プレイヤーの希望リストの最初のキャラクターを割り当てる
                             // （これはスコアが低くなる可能性が高いが、強制的に割り当てるため）
-                            finalRoles[player] = preferences[player][0];
+                            if (playerPrefList.length > 0) {
+                                finalRoles[player] = playerPrefList[0];
+                            } else {
+                                // 希望リストも空で、割り当て可能なキャラクターもいない場合
+                                finalRoles[player] = '未割り当て';
+                            }
                         }
                     }
                 }
                 return finalRoles;
             }
-
             return best_roles;
         }
 
-        // 配役処理を実行し、結果を表示
-        function assignRolesHandler() {
-            if (players.length === 0 || characters.length === 0) {
-                showMessageBox('プレイヤーとキャラクターの両方を設定してください。');
-                return;
-            }
+        // 配役結果を表示する関数
+        function renderAssignmentResults(assignments) {
+            const resultsDiv = document.getElementById('assignmentResults');
+            resultsDiv.innerHTML = ''; // Clear existing results
 
-            if (players.length > characters.length) {
-                showMessageBox('プレイヤーの数がキャラクターの数を超えています。すべてのプレイヤーに異なるキャラクターを割り当てられない可能性があります。');
+            if (!assignments) {
+                resultsDiv.innerHTML = '<p class="text-gray-500">上記ボタンをクリックすると結果が表示されます。</p>';
+                return;
             }
 
             const preferencesForAlgorithm = {};
             for (const player of players) {
                 preferencesForAlgorithm[player] = playerPreferences[player] || [];
             }
-
-            for (const player in preferencesForAlgorithm) {
-                if (preferencesForAlgorithm[player].length === 0) {
-                    showMessageBox(`プレイヤー「${player}」の希望キャラクターが設定されていません。キャラクターを追加してください。`);
-                    return;
-                }
-            }
-
-            const assignments = assign_roles(preferencesForAlgorithm);
-            const resultsDiv = document.getElementById('assignmentResults');
-            resultsDiv.innerHTML = ''; // Clear existing results
 
             for (const player in assignments) {
                 const assignedCharacter = assignments[player];
@@ -1131,6 +1177,35 @@
             }
         }
 
+        // 「配役を決定」ボタンが押されたときのハンドラ
+        function assignRolesAndRender() {
+            if (players.length === 0 || characters.length === 0) {
+                showMessageBox('プレイヤーとキャラクターの両方を設定してください。');
+                return;
+            }
+
+            if (players.length > characters.length) {
+                showMessageBox('プレイヤーの数がキャラクターの数を超えています。すべてのプレイヤーに異なるキャラクターを割り当てられない可能性があります。');
+            }
+
+            const preferencesForAlgorithm = {};
+            for (const player of players) {
+                preferencesForAlgorithm[player] = playerPreferences[player] || [];
+            }
+
+            for (const player in preferencesForAlgorithm) {
+                if (preferencesForAlgorithm[player].length === 0) {
+                    showMessageBox(`プレイヤー「${player}」の希望キャラクターが設定されていません。キャラクターを追加するか、配役希望を設定してください。`);
+                    return;
+                }
+            }
+
+            // 配役を計算し、lastAssignmentsに保存
+            lastAssignments = assign_roles(preferencesForAlgorithm);
+            // 結果をレンダリング
+            renderAssignmentResults(lastAssignments);
+        }
+
         // セクションの表示/非表示を切り替える関数
         function toggleSection(sectionType) {
             const contentDiv = document.getElementById(`${sectionType}SectionContent`);
@@ -1149,6 +1224,16 @@
             } else if (sectionType === 'character') {
                 characterSectionCollapsed = !characterSectionCollapsed;
                 if (characterSectionCollapsed) {
+                    contentDiv.classList.add('collapsed');
+                    toggleIcon.classList.add('collapsed');
+                } else {
+                    contentDiv.classList.remove('collapsed');
+                    toggleIcon.classList.remove('collapsed');
+                }
+                saveDataToLocalStorage();
+            } else if (sectionType === 'preferences') { // 新しい配役希望セクション
+                preferencesSectionCollapsed = !preferencesSectionCollapsed;
+                if (preferencesSectionCollapsed) {
                     contentDiv.classList.add('collapsed');
                     toggleIcon.classList.add('collapsed');
                 } else {
@@ -1186,9 +1271,12 @@
                 togglePreferenceRankDisplayCheckbox.addEventListener('change', (event) => {
                     displayPreferenceRank = event.target.checked;
                     saveDataToLocalStorage(); // 設定変更を保存
-                    // 設定が変更されたら、自動的に配役を再計算して表示を更新する
-                    assignRolesHandler(); 
+                    if (lastAssignments) { // 既に配役結果がある場合のみ表示を更新
+                        renderAssignmentResults(lastAssignments);
+                    }
                 });
+                // グローバル変数を初期のチェックボックス状態と同期
+                togglePreferenceRankDisplayCheckbox.checked = displayPreferenceRank;
             }
 
             // スコア表示のチェックボックスのイベントリスナーを設定
@@ -1197,14 +1285,18 @@
                 toggleScoreDisplayCheckbox.addEventListener('change', (event) => {
                     displayScore = event.target.checked;
                     saveDataToLocalStorage(); // 設定変更を保存
-                    // 設定が変更されたら、自動的に配役を再計算して表示を更新する
-                    assignRolesHandler(); 
+                    if (lastAssignments) { // 既に配役結果がある場合のみ表示を更新
+                        renderAssignmentResults(lastAssignments);
+                    }
                 });
+                // グローバル変数を初期のチェックボックス状態と同期
+                toggleScoreDisplayCheckbox.checked = displayScore;
             }
 
             // プレイヤー設定とキャラクター設定セクションの初期折り畳み状態を適用
             applySectionState('player', playerSectionCollapsed);
             applySectionState('character', characterSectionCollapsed);
+            applySectionState('preferences', preferencesSectionCollapsed); // 配役希望セクションの初期状態を適用
         });
     </script>
 </body>
