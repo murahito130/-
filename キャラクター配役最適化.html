@@ -143,7 +143,39 @@
         .player-item span, .character-item span {
             font-weight: 500;
         }
-        .player-item button, .character-item button {
+        /* 名前とボタンを同じ行に表示するためのスタイル */
+        .name-and-buttons {
+            display: flex;
+            align-items: center;
+            gap: 8px; /* 要素間のスペース */
+        }
+
+        .name-and-buttons .edit-input {
+            flex-grow: 1; /* 入力フィールドがスペースを埋めるように */
+            padding: 4px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .player-item .edit-button,
+        .character-item .edit-button {
+            background: none;
+            border: none;
+            color: #4285F4; /* Google Blue */
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 4px;
+            transition: color 0.2s ease;
+        }
+
+        .player-item .edit-button:hover,
+        .character-item .edit-button:hover {
+            color: #3367D6;
+        }
+
+        .player-item button.delete-button,
+        .character-item button.delete-button {
             background-color: #d32f2f; /* Material Red */
             color: white;
             border: none;
@@ -156,14 +188,18 @@
             display: flex; /* アイコンを中央揃え */
             align-items: center; /* アイコンを中央揃え */
             justify-content: center; /* アイコンを中央揃え */
+            margin-left: 8px; /* 編集ボタンとの間隔 */
         }
-        .player-item button i, .character-item button i {
-            margin: 0; /* アイコンに余分なマージンがないことを確認 */
+        .player-item button.delete-button i,
+        .character-item button.delete-button i {
+            margin: 0;
         }
-        .player-item button:hover, .character-item button:hover {
-            background-color: #b71c1c; /* Darker Red */
+        .player-item button.delete-button:hover,
+        .character-item button.delete-button:hover {
+            background-color: #b71c1c;
             transform: translateY(-1px);
         }
+
         .preferences-section {
             margin-bottom: 25px;
             padding: 20px;
@@ -621,7 +657,7 @@
             renderPlayerPreferences();
         }
 
-        // プレイヤーリストをレンダリング (ドラッグ＆ドロップ対応)
+        // プレイヤーリストをレンダリング (ドラッグ＆ドロップ、編集対応)
         function renderPlayers() {
             const playerListDiv = document.getElementById('playerList');
             playerListDiv.innerHTML = '';
@@ -633,20 +669,110 @@
                 playerItem.ondragstart = handlePlayerDragStart;
                 playerItem.ondragend = handlePlayerDragEnd;
 
+                const nameDisplay = document.createElement('span');
+                nameDisplay.textContent = player;
+                nameDisplay.className = 'player-name-display';
+
+                const nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.value = player;
+                nameInput.className = 'edit-input hidden'; // Initially hidden
+                nameInput.dataset.oldName = player; // Store original name for reference
+
+                const editButton = document.createElement('button');
+                editButton.className = 'edit-button';
+                editButton.innerHTML = '<i class="fas fa-edit"></i>'; // Pencil icon
+                editButton.title = '編集';
+
                 const deleteButton = document.createElement('button');
-                // 削除ボタンをアイコンで表示し、ツールチップを設定
+                deleteButton.className = 'delete-button';
                 deleteButton.innerHTML = '<i class="fas fa-trash"></i>'; 
                 deleteButton.title = '削除'; // ツールチップ
                 deleteButton.onclick = () => removePlayer(player);
 
-                const span = document.createElement('span'); // Wrap player name in a span for consistent styling
-                span.textContent = player;
-                playerItem.appendChild(span);
+                const nameAndButtonsContainer = document.createElement('div');
+                nameAndButtonsContainer.className = 'name-and-buttons';
+                nameAndButtonsContainer.appendChild(nameDisplay);
+                nameAndButtonsContainer.appendChild(nameInput);
+                nameAndButtonsContainer.appendChild(editButton);
+                
+                playerItem.appendChild(nameAndButtonsContainer);
                 playerItem.appendChild(deleteButton);
 
                 playerListDiv.appendChild(playerItem);
+
+                // Edit functionality
+                editButton.onclick = () => {
+                    if (nameInput.classList.contains('hidden')) {
+                        // Switch to edit mode
+                        nameDisplay.classList.add('hidden');
+                        nameInput.classList.remove('hidden');
+                        nameInput.focus();
+                        nameInput.setSelectionRange(nameInput.value.length, nameInput.value.length); // カーソルを末尾に
+                        editButton.innerHTML = '<i class="fas fa-check"></i>'; // Checkmark icon
+                        editButton.title = '保存';
+                    } else {
+                        // Switch to display mode and save
+                        savePlayerEdit(nameInput, player);
+                        nameDisplay.classList.remove('hidden');
+                        nameInput.classList.add('hidden');
+                        editButton.innerHTML = '<i class="fas fa-edit"></i>'; // Pencil icon
+                        editButton.title = '編集';
+                    }
+                };
+
+                nameInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        nameInput.blur(); // Trigger blur to save
+                    }
+                });
+
+                nameInput.addEventListener('blur', () => {
+                    savePlayerEdit(nameInput, player);
+                    nameDisplay.classList.remove('hidden');
+                    nameInput.classList.add('hidden');
+                    editButton.innerHTML = '<i class="fas fa-edit"></i>';
+                    editButton.title = '編集';
+                });
             });
         }
+
+        // プレイヤー名を保存する関数
+        function savePlayerEdit(inputElement, oldName) {
+            const newName = inputElement.value.trim();
+            if (newName === oldName) {
+                // 名前が変わっていない場合は何もしない
+                return;
+            }
+            if (!newName) {
+                showMessageBox('プレイヤー名は空にできません。');
+                inputElement.value = oldName; // 元の名前に戻す
+                return;
+            }
+            if (players.includes(newName)) {
+                showMessageBox('そのプレイヤー名はすでに存在します。');
+                inputElement.value = oldName; // 元の名前に戻す
+                return;
+            }
+
+            // players配列の更新
+            const playerIndex = players.indexOf(oldName);
+            if (playerIndex !== -1) {
+                players[playerIndex] = newName;
+            }
+
+            // playerPreferencesのキーを更新
+            if (playerPreferences[oldName]) {
+                playerPreferences[newName] = playerPreferences[oldName];
+                delete playerPreferences[oldName];
+            }
+            
+            saveDataToLocalStorage();
+            renderPlayers(); // UIを再レンダリングして最新の状態を反映
+            renderPlayerPreferences(); // 希望設定も更新
+            // showMessageBox(`プレイヤー名が「${oldName}」から「${newName}」に変更されました。`); // Removed dialog
+        }
+
 
         // プレイヤーの優先度をシャッフルする
         function shufflePlayers() {
@@ -662,7 +788,7 @@
             saveDataToLocalStorage();
             renderPlayers();
             renderPlayerPreferences(); // プレイヤーの順序が変わったので希望設定も再レンダリング
-            showMessageBox('プレイヤーの優先順位をシャッフルしました。');
+            // showMessageBox('プレイヤーの優先順位をシャッフルしました。'); // Removed dialog
         }
 
         // プレイヤー設定をリセットする関数
@@ -712,7 +838,7 @@
             renderPlayerPreferences();
         }
 
-        // キャラクターリストをレンダリング
+        // キャラクターリストをレンダリング (ドラッグ＆ドロップ、編集対応)
         function renderCharacters() {
             const characterListDiv = document.getElementById('characterList');
             characterListDiv.innerHTML = '';
@@ -725,13 +851,112 @@
                 characterItem.style.color = charObj.textColor; // 文字色を適用
                 characterItem.ondragstart = handleCharListItemDragStart; // ドラッグ開始イベントハンドラ
                 characterItem.ondragend = handleCharListItemDragEnd; // ドラッグ終了イベントハンドラ
-                characterItem.innerHTML = `
-                    <span>${charObj.name}</span>
-                    <button onclick="removeCharacter('${charObj.name}')" title="削除"><i class="fas fa-trash"></i></button>
-                `;
+
+                const nameDisplay = document.createElement('span');
+                nameDisplay.textContent = charObj.name;
+                nameDisplay.className = 'character-name-display';
+
+                const nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.value = charObj.name;
+                nameInput.className = 'edit-input hidden'; // Initially hidden
+                nameInput.dataset.oldName = charObj.name; // Store original name for reference
+
+                const editButton = document.createElement('button');
+                editButton.className = 'edit-button';
+                editButton.innerHTML = '<i class="fas fa-edit"></i>'; // Pencil icon
+                editButton.title = '編集';
+
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'delete-button';
+                deleteButton.innerHTML = '<i class="fas fa-trash"></i>'; 
+                deleteButton.title = '削除'; // ツールチップ
+                deleteButton.onclick = () => removeCharacter(charObj.name);
+
+                const nameAndButtonsContainer = document.createElement('div');
+                nameAndButtonsContainer.className = 'name-and-buttons';
+                nameAndButtonsContainer.appendChild(nameDisplay);
+                nameAndButtonsContainer.appendChild(nameInput);
+                nameAndButtonsContainer.appendChild(editButton);
+
+                characterItem.appendChild(nameAndButtonsContainer);
+                characterItem.appendChild(deleteButton);
+                
                 characterListDiv.appendChild(characterItem);
+
+                // Edit functionality
+                editButton.onclick = () => {
+                    if (nameInput.classList.contains('hidden')) {
+                        // Switch to edit mode
+                        nameDisplay.classList.add('hidden');
+                        nameInput.classList.remove('hidden');
+                        nameInput.focus();
+                        nameInput.setSelectionRange(nameInput.value.length, nameInput.value.length); // カーソルを末尾に
+                        editButton.innerHTML = '<i class="fas fa-check"></i>'; // Checkmark icon
+                        editButton.title = '保存';
+                    } else {
+                        // Switch to display mode and save
+                        saveCharacterEdit(nameInput, charObj.name);
+                        nameDisplay.classList.remove('hidden');
+                        nameInput.classList.add('hidden');
+                        editButton.innerHTML = '<i class="fas fa-edit"></i>'; // Pencil icon
+                        editButton.title = '編集';
+                    }
+                };
+
+                nameInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        nameInput.blur(); // Trigger blur to save
+                    }
+                });
+
+                nameInput.addEventListener('blur', () => {
+                    saveCharacterEdit(nameInput, charObj.name);
+                    nameDisplay.classList.remove('hidden');
+                    nameInput.classList.add('hidden');
+                    editButton.innerHTML = '<i class="fas fa-edit"></i>';
+                    editButton.title = '編集';
+                });
             });
         }
+
+        // キャラクター名を保存する関数
+        function saveCharacterEdit(inputElement, oldName) {
+            const newName = inputElement.value.trim();
+            if (newName === oldName) {
+                // 名前が変わっていない場合は何もしない
+                return;
+            }
+            if (!newName) {
+                showMessageBox('キャラクター名は空にできません。');
+                inputElement.value = oldName; // 元の名前に戻す
+                return;
+            }
+            if (characters.some(char => char.name === newName)) {
+                showMessageBox('そのキャラクター名はすでに存在します。');
+                inputElement.value = oldName; // 元の名前に戻す
+                return;
+            }
+
+            // characters配列の更新
+            const charObj = characters.find(c => c.name === oldName);
+            if (charObj) {
+                charObj.name = newName;
+            }
+
+            // playerPreferencesの値を更新
+            for (const player in playerPreferences) {
+                playerPreferences[player] = playerPreferences[player].map(charName => 
+                    charName === oldName ? newName : charName
+                );
+            }
+            
+            saveDataToLocalStorage();
+            renderCharacters(); // UIを再レンダリングして最新の状態を反映
+            renderPlayerPreferences(); // 希望設定も更新
+            // showMessageBox(`キャラクター名が「${oldName}」から「${newName}」に変更されました。`); // Removed dialog
+        }
+
 
         // キャラクター設定をリセットする関数
         function resetCharacters() {
@@ -1275,7 +1500,7 @@
                                 finalRoles[player] = playerPrefList[0];
                             } else {
                                 // 希望リストも空で、割り当て可能なキャラクターもいない場合
-                                finalRoles[player] = '未割り当て';
+                                finalRoles[player] = '未割り当て'; 
                             }
                         }
                     }
