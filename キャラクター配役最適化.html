@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
-<head>
+<html lang="ja"><head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +7,7 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts - Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -316,6 +315,37 @@
         .toggle-icon.collapsed {
             transform: rotate(-90deg); /* 閉じた時にアイコンを回転 */
         }
+        /* 新しいリセットボタンのスタイル */
+        .reset-button {
+            background-color: #f44336; /* Red color for reset */
+            color: white;
+            padding: 10px 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 10px; /* Adjust margin as needed */
+        }
+        .reset-button:hover {
+            background-color: #d32f2f; /* Darker red */
+            transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+        }
+        .reset-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .section-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px; /* スペースを調整 */
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-4">
@@ -324,10 +354,16 @@
 
         <div class="player-input-section">
             <h2 class="collapsible-header" onclick="toggleSection('player')">
-                プレイヤー設定 <span class="text-sm font-normal text-gray-500">(リストの<strong class="font-bold">上</strong>にあるプレイヤーほど、配役の優先度が高くなります。ドラッグして順序を調整してください。)</span>
-                <span id="playerToggleIcon" class="toggle-icon">▼</span>
+                <div class="flex items-center">
+                    プレイヤー設定 <span class="text-sm font-normal text-gray-500 ml-2">(リストの<strong class="font-bold">上</strong>にあるプレイヤーほど、配役の優先度が高くなります。ドラッグして順序を調整してください。)</span>
+                </div>
+                <div class="section-header-actions">
+                    <!-- リセットボタンをクリックした際にイベントの伝播を停止 -->
+                    <button onclick="event.stopPropagation(); resetPlayers();" class="reset-button" title="プレイヤー設定をリセット"><i class="fas fa-undo"></i></button>
+                    <span id="playerToggleIcon" class="toggle-icon collapsed">▼</span>
+                </div>
             </h2>
-            <div id="playerSectionContent" class="collapsible-content">
+            <div id="playerSectionContent" class="collapsible-content collapsed">
                 <div class="flex items-center space-x-2 mb-4">
                     <input type="text" id="playerName" placeholder="プレイヤー名を入力" class="flex-grow rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
                     <button onclick="addPlayer()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300" title="プレイヤーを追加"><i class="fas fa-plus"></i></button>
@@ -339,24 +375,37 @@
 
         <div class="character-input-section">
             <h2 class="collapsible-header" onclick="toggleSection('character')">
-                キャラクター設定
-                <span id="characterToggleIcon" class="toggle-icon">▼</span>
+                <div class="flex items-center">
+                    キャラクター設定
+                </div>
+                <div class="section-header-actions">
+                    <!-- リセットボタンをクリックした際にイベントの伝播を停止 -->
+                    <button onclick="event.stopPropagation(); resetCharacters();" class="reset-button" title="キャラクター設定をリセット"><i class="fas fa-undo"></i></button>
+                    <span id="characterToggleIcon" class="toggle-icon collapsed">▼</span>
+                </div>
             </h2>
-            <div id="characterSectionContent" class="collapsible-content">
+            <div id="characterSectionContent" class="collapsible-content collapsed">
                 <div class="flex items-center space-x-2 mb-4">
                     <input type="text" id="characterName" placeholder="キャラクター名を入力" class="flex-grow rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
                     <button onclick="addCharacter()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300" title="キャラクターを追加"><i class="fas fa-plus"></i></button>
                 </div>
-                <div id="characterList" class="space-y-2"></div>
+                <!-- キャラクターリストのドラッグ＆ドロップイベントハンドラを追加 -->
+                <div id="characterList" class="space-y-2" ondragover="handleCharListItemDragOver(event)" ondrop="handleCharListItemDrop(event)"></div>
             </div>
         </div>
 
         <div class="preferences-section">
             <h2 class="collapsible-header" onclick="toggleSection('preferences')">
-                配役希望のドラッグ＆ドロップ
-                <span id="preferencesToggleIcon" class="toggle-icon">▼</span>
+                <div class="flex items-center">
+                    配役希望の設定
+                </div>
+                <div class="section-header-actions">
+                    <!-- リセットボタンをクリックした際にイベントの伝播を停止 -->
+                    <button onclick="event.stopPropagation(); resetPlayerPreferences();" class="reset-button" title="配役希望をリセット"><i class="fas fa-undo"></i></button>
+                    <span id="preferencesToggleIcon" class="toggle-icon collapsed">▼</span>
+                </div>
             </h2>
-            <div id="preferencesSectionContent" class="collapsible-content">
+            <div id="preferencesSectionContent" class="collapsible-content collapsed">
                 <p class="text-gray-600 mb-4">各プレイヤーのキャラクター希望順位を、ドラッグ&amp;ドロップで<strong class="font-bold">左から優先度の高い順</strong>に並べ替えてください。</p>
                 <div id="playerPreferencesContainer"></div>
             </div>
@@ -402,6 +451,9 @@
         let characterSectionCollapsed = false; // キャラクター設定セクションの折り畳み状態
         let preferencesSectionCollapsed = false; // 配役希望セクションの折り畳み状態
         let lastAssignments = null; // 最後に計算された配役結果を保存する変数
+
+        // ドラッグ中のキャラクターアイテム（キャラクター設定リスト用）
+        let draggedCharListItem = null;
 
         // ローカルストレージにデータを保存する関数
         function saveDataToLocalStorage() {
@@ -613,6 +665,16 @@
             showMessageBox('プレイヤーの優先順位をシャッフルしました。');
         }
 
+        // プレイヤー設定をリセットする関数
+        function resetPlayers() {
+            players = [];
+            playerPreferences = {}; // 希望もリセット
+            saveDataToLocalStorage();
+            renderPlayers();
+            renderPlayerPreferences();
+            showMessageBox('プレイヤー設定がリセットされました。');
+        }
+
         // キャラクターを追加
         function addCharacter() {
             const characterNameInput = document.getElementById('characterName');
@@ -657,14 +719,31 @@
             characters.forEach(charObj => { // キャラクターオブジェクトを反復処理
                 const characterItem = document.createElement('div');
                 characterItem.className = 'character-item';
+                characterItem.draggable = true; // キャラクターアイテムをドラッグ可能にする
+                characterItem.dataset.character = charObj.name; // キャラクター名をデータ属性に保存
                 characterItem.style.backgroundColor = charObj.bgColor; // 背景色を適用
                 characterItem.style.color = charObj.textColor; // 文字色を適用
+                characterItem.ondragstart = handleCharListItemDragStart; // ドラッグ開始イベントハンドラ
+                characterItem.ondragend = handleCharListItemDragEnd; // ドラッグ終了イベントハンドラ
                 characterItem.innerHTML = `
                     <span>${charObj.name}</span>
                     <button onclick="removeCharacter('${charObj.name}')" title="削除"><i class="fas fa-trash"></i></button>
                 `;
                 characterListDiv.appendChild(characterItem);
             });
+        }
+
+        // キャラクター設定をリセットする関数
+        function resetCharacters() {
+            characters = [];
+            // 各プレイヤーの希望リストも空にする
+            for (const player in playerPreferences) {
+                playerPreferences[player] = [];
+            }
+            saveDataToLocalStorage();
+            renderCharacters();
+            renderPlayerPreferences();
+            showMessageBox('キャラクター設定がリセットされました。');
         }
 
         // 各プレイヤーの配役希望セクションをレンダリング（ドラッグ＆ドロップ対応）
@@ -713,7 +792,19 @@
             });
         }
 
-        // ======================== ドラッグ＆ドロップ処理 (キャラクター) ========================
+        // 配役希望設定をリセットする関数
+        function resetPlayerPreferences() {
+            // 各プレイヤーの希望をキャラクターの初期順序に戻す
+            const currentCharacterNames = characters.map(charObj => charObj.name);
+            for (const player of players) {
+                playerPreferences[player] = [...currentCharacterNames]; // 全キャラクターを初期順序で追加
+            }
+            saveDataToLocalStorage();
+            renderPlayerPreferences();
+            showMessageBox('配役希望の設定がリセットされました。');
+        }
+
+        // ======================== ドラッグ＆ドロップ処理 (キャラクター希望順位) ========================
         let draggedCharacterItem = null;
         let draggedCharacterSourcePlayer = null; // ドラッグ開始時のプレイヤー名を保持
 
@@ -854,13 +945,80 @@
             draggedPlayerItem = null; // Reset
         }
 
+        // ======================== ドラッグ＆ドロップ処理 (キャラクター設定リスト) ========================
+        function handleCharListItemDragStart(event) {
+            draggedCharListItem = event.target;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', draggedCharListItem.dataset.character);
+            setTimeout(() => {
+                draggedCharListItem.classList.add('dragging');
+            }, 0);
+        }
+
+        function handleCharListItemDragEnd() {
+            if (draggedCharListItem) {
+                draggedCharListItem.classList.remove('dragging');
+            }
+            draggedCharListItem = null;
+        }
+
+        function handleCharListItemDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            const targetList = event.currentTarget;
+            targetList.classList.add('dragging-over');
+
+            const afterElement = getDragAfterElement(targetList, event.clientY, '.character-item:not(.dragging)');
+            const draggable = document.querySelector('.character-item.dragging'); // ドラッグ中のアイテムがキャラクターリストのものであることを確認
+            if (draggable && draggable.parentElement === targetList) { // ドロップ対象が同じリスト内であることを確認
+                if (afterElement == null) {
+                    targetList.appendChild(draggable);
+                } else {
+                    targetList.insertBefore(draggable, afterElement);
+                }
+            }
+        }
+
+        function handleCharListItemDrop(event) {
+            event.preventDefault();
+            const targetList = event.currentTarget;
+            targetList.classList.remove('dragging-over');
+
+            if (!draggedCharListItem) return;
+
+            // DOMの新しい順序に基づいてcharacters配列を更新
+            const newCharacterOrderNames = Array.from(targetList.children)
+                                              .filter(item => item.classList.contains('character-item'))
+                                              .map(item => item.dataset.character);
+
+            // characters配列を新しい順序に基づいて再構築
+            const newCharactersArray = [];
+            for (const name of newCharacterOrderNames) {
+                const charObj = characters.find(c => c.name === name);
+                if (charObj) {
+                    newCharactersArray.push(charObj);
+                }
+            }
+            characters = newCharactersArray; // グローバルなcharacters配列を更新
+
+            saveDataToLocalStorage(); // データを保存
+
+            // UIを再レンダリング
+            renderCharacters();
+            renderPlayerPreferences(); // キャラクターの順序が変わったので、希望設定セクションも更新
+
+            draggedCharListItem = null; // Reset
+        }
+
+
         // ドロップ位置に基づいて要素を挿入する場所を決定する汎用関数
         // isHorizontal: trueの場合、x座標に基づいて要素を決定。falseの場合、y座標。
         function getDragAfterElement(container, clientCoordinate, selector) {
             const draggableElements = [...container.querySelectorAll(selector)];
 
             // Determine if the container is primarily horizontal or vertical for drop positioning
-            const isHorizontal = container.classList.contains('preference-list'); // Assumes preference-list is horizontal
+            // .preference-list は横方向、その他 (playerList, characterList) は縦方向
+            const isHorizontal = container.classList.contains('preference-list');
 
             return draggableElements.reduce((closest, child) => {
                 const box = child.getBoundingClientRect();
@@ -978,7 +1136,6 @@
                              roles[player] = preferences[player][preferences[player].length - 1];
                         } else {
                              // 希望リストも空で、割り当て可能なキャラクターもいない場合
-                             // これはエラー状態と考えるべきだが、ここでは単純に割り当てなしとする
                              roles[player] = '未割り当て'; 
                         }
                     }
@@ -1299,5 +1456,6 @@
             applySectionState('preferences', preferencesSectionCollapsed); // 配役希望セクションの初期状態を適用
         });
     </script>
-</body>
-</html>
+
+
+</body></html>
