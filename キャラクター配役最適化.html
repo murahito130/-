@@ -130,6 +130,11 @@
             cursor: grab;
             transition: background-color 0.3s ease, box-shadow 0.3s ease;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* subtle shadow */
+            background-color: #ffffff; /* Explicitly set white background for content */
+            color: #333; /* Default text color for main content */
+            position: relative; /* For absolute positioning of stripe */
+            overflow: hidden; /* Ensure stripe borderRadius respects parent */
+            padding-left: 26px; /* Adjust padding for the stripe */
         }
         .player-item:hover, .character-item:hover {
             background-color: #d1d1d1;
@@ -148,6 +153,9 @@
             display: flex;
             align-items: center;
             gap: 8px; /* 要素間のスペース */
+            flex-grow: 1; /* Allow it to take available space */
+            position: relative; /* For z-index to work */
+            z-index: 1; /* Keep content above the stripe if any overlap */
         }
 
         .name-and-buttons .edit-input {
@@ -198,6 +206,17 @@
         .character-item button.delete-button:hover {
             background-color: #b71c1c;
             transform: translateY(-1px);
+        }
+
+        /* New style for the color stripe */
+        .color-stripe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 8px; /* Width of the color stripe */
+            border-top-left-radius: inherit; /* Match parent's border radius */
+            border-bottom-left-radius: inherit; /* Match parent's border radius */
         }
 
         .preferences-section {
@@ -261,12 +280,23 @@
             cursor: grab;
             transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background-color: #ffffff; /* Explicitly set white background for content */
+            color: #333; /* Default text color for main content */
+            position: relative; /* For absolute positioning of stripe */
+            overflow: hidden; /* Ensure stripe borderRadius respects parent */
+            padding-left: 22px; /* Adjust padding for the stripe (smaller for preference-item) */
         }
         .preference-item:hover {
             /* background-color will be set by JS dynamically */
             transform: translateY(-1px);
             box-shadow: 0 3px 6px rgba(0,0,0,0.15);
         }
+        .preference-item .color-stripe {
+            width: 6px; /* Slightly smaller stripe for preference items */
+            border-top-left-radius: inherit; /* Match parent's border radius */
+            border-bottom-left-radius: inherit; /* Match parent's border radius */
+        }
+
         .results-section {
             padding: 20px;
             background-color: #e3f2fd; /* Light blue for results */
@@ -847,10 +877,15 @@
                 characterItem.className = 'character-item';
                 characterItem.draggable = true; // キャラクターアイテムをドラッグ可能にする
                 characterItem.dataset.character = charObj.name; // キャラクター名をデータ属性に保存
-                characterItem.style.backgroundColor = charObj.bgColor; // 背景色を適用
-                characterItem.style.color = charObj.textColor; // 文字色を適用
+                // characterItem.style.backgroundColor = charObj.bgColor; // Removed
+                // characterItem.style.color = charObj.textColor; // Removed
                 characterItem.ondragstart = handleCharListItemDragStart; // ドラッグ開始イベントハンドラ
                 characterItem.ondragend = handleCharListItemDragEnd; // ドラッグ終了イベントハンドラ
+
+                const colorStripe = document.createElement('div'); // Create color stripe
+                colorStripe.className = 'color-stripe';
+                colorStripe.style.backgroundColor = charObj.bgColor;
+                characterItem.prepend(colorStripe); // Add stripe to the beginning
 
                 const nameDisplay = document.createElement('span');
                 nameDisplay.textContent = charObj.name;
@@ -906,6 +941,7 @@
 
                 nameInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
+                        e.preventDefault(); // Prevent form submission
                         nameInput.blur(); // Trigger blur to save
                     }
                 });
@@ -1007,10 +1043,14 @@
                         charItem.draggable = true;
                         charItem.textContent = charObj.name;
                         charItem.dataset.character = charObj.name; // キャラクター名をデータ属性に保存
-                        charItem.style.backgroundColor = charObj.bgColor; // 背景色を適用
-                        charItem.style.color = charObj.textColor; // 文字色を適用
-                        charItem.ondragstart = handleCharacterDragStart;
-                        charItem.ondragend = handleCharacterDragEnd;
+                        // charItem.style.backgroundColor = charObj.bgColor; // Removed
+                        // charItem.style.color = charObj.textColor; // Removed
+
+                        const colorStripe = document.createElement('div'); // Create color stripe
+                        colorStripe.className = 'color-stripe';
+                        colorStripe.style.backgroundColor = charObj.bgColor;
+                        charItem.prepend(colorStripe); // Add stripe to the beginning
+
                         prefList.appendChild(charItem);
                     }
                 });
