@@ -13,7 +13,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5;
+            background-color: #e8f0f2; /* Light blue-grey background */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -24,41 +24,42 @@
         .container {
             background-color: #ffffff;
             padding: 30px;
-            border-radius: 16px; /* より大きな丸み */
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15); /* より明確な影 */
+            border-radius: 16px;
+            /* More pronounced, material-like shadow */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1), 0 6px 6px rgba(0, 0, 0, 0.08);
             width: 100%;
             max-width: 800px;
             border: 1px solid #e0e0e0;
         }
         h1 {
-            color: #333;
-            font-size: 2.5rem; /* 少し大きく */
+            color: #212121; /* Darker for prominence */
+            font-size: 2.5rem;
             font-weight: 700;
-            margin-bottom: 30px; /* 余白を増やす */
+            margin-bottom: 30px;
             text-align: center;
         }
-        .player-input-section, .character-input-section, .preferences-section { /* preferences-sectionを追加 */
+        .player-input-section, .character-input-section, .preferences-section {
             margin-bottom: 25px;
             padding: 20px;
-            background-color: #ffffff; /* 背景色を統一 */
-            border-radius: 12px; /* 丸みを強調 */
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08); /* 影を追加 */
+            background-color: #ffffff;
+            border-radius: 12px;
+            /* Subtler section shadow */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
             border: 1px solid #e9e9e9;
         }
         h2 {
-            font-size: 1.75rem; /* 少し大きく */
+            font-size: 1.75rem;
             font-weight: 600;
-            color: #212121; /* より濃い色 */
+            color: #212121;
             margin-bottom: 15px;
         }
-        /* Flexbox for h2 and toggle icon */
         h2.collapsible-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             cursor: pointer;
-            padding-bottom: 10px; /* Space between header and content */
-            margin-bottom: 0; /* Remove default margin */
+            padding-bottom: 10px;
+            margin-bottom: 0;
         }
         label {
             display: block;
@@ -68,98 +69,104 @@
         }
         input[type="text"] {
             width: calc(100% - 20px);
-            padding: 14px; /* パディングを増やす */
+            padding: 14px;
             margin-bottom: 15px;
-            border: 1px solid #bdbdbd; /* 枠線を強調 */
+            border: 1px solid #bdbdbd;
             border-radius: 8px;
             font-size: 1rem;
             box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
         input[type="text"]:focus {
-            border-color: #4285F4; /* フォーカス時の色 */
-            box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.2); /* フォーカス時の影 */
+            border-color: #1e88e5; /* A more Material Design blue */
+            box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.2); /* Matching focus shadow */
             outline: none;
         }
-        .button-group button {
-            background-color: #4285F4; /* Google Blue */
+        .button-group button,
+        button.bg-blue-500 { /* Targeting specific buttons for consistent style */
+            background-color: #1e88e5; /* Material Blue 600 */
+            background-image: linear-gradient(135deg, #2196f3 0%, #1e88e5 100%); /* Subtle gradient */
             color: white;
-            padding: 14px 18px; /* アイコンのみなのでパディングを調整 */
+            padding: 14px 18px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 1.1rem; /* 少し大きく */
+            font-size: 1.1rem;
             font-weight: 600;
             transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); /* More prominent button shadow */
             margin-right: 10px;
-            display: flex; /* アイコンを中央揃え */
-            align-items: center; /* アイコンを中央揃え */
-            justify-content: center; /* アイコンを中央揃え */
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        /* アイコンのみのボタンなので、マージンは不要 */
-        .button-group button i {
-            margin-right: 0; 
+        .button-group button i,
+        button.bg-blue-500 i {
+            margin-right: 0;
         }
         .button-group button:last-child {
             margin-right: 0;
         }
-        .button-group button:hover {
-            background-color: #3367D6; /* 少し濃く */
-            transform: translateY(-2px);
-            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+        .button-group button:hover,
+        button.bg-blue-500:hover {
+            background-color: #1976d2; /* Darker blue on hover */
+            background-image: linear-gradient(135deg, #1e88e5 0%, #1976d2 100%);
+            transform: translateY(-3px); /* Slightly more lift */
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25); /* Stronger hover shadow */
         }
-        .button-group button:active {
+        .button-group button:active,
+        button.bg-blue-500:active {
             transform: translateY(0);
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
         .button-group button.secondary {
-            background-color: #616161; /* Darker grey for secondary */
+            background-color: #616161;
+            background-image: linear-gradient(135deg, #757575 0%, #616161 100%);
         }
         .button-group button.secondary:hover {
             background-color: #424242;
+            background-image: linear-gradient(135deg, #616161 0%, #424242 100%);
         }
         .player-item, .character-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 18px; /* パディングを増やす */
+            padding: 12px 18px;
             border-radius: 8px;
             margin-bottom: 8px;
             border: 1px solid #dcdcdc;
             cursor: grab;
             transition: background-color 0.3s ease, box-shadow 0.3s ease;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* subtle shadow */
-            background-color: #ffffff; /* Explicitly set white background for content */
-            color: #333; /* Default text color for main content */
-            position: relative; /* For absolute positioning of stripe */
-            overflow: hidden; /* Ensure stripe borderRadius respects parent */
-            padding-left: 26px; /* Adjust padding for the stripe */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* subtle shadow for items */
+            background-color: #ffffff;
+            color: #333;
+            position: relative;
+            overflow: hidden;
+            padding-left: 26px; /* Adjusted padding for the stripe */
         }
         .player-item:hover, .character-item:hover {
-            background-color: #d1d1d1;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            background-color: #f5f5f5; /* Light grey on hover */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Stronger hover shadow */
         }
         .player-item.dragging, .character-item.dragging {
-            opacity: 0.7; /* Dragging state */
-            border: 2px dashed #4285F4;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            opacity: 0.7;
+            border: 2px dashed #1e88e5; /* Match new primary color */
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
         }
         .player-item span, .character-item span {
             font-weight: 500;
         }
-        /* 名前とボタンを同じ行に表示するためのスタイル */
         .name-and-buttons {
             display: flex;
             align-items: center;
-            gap: 8px; /* 要素間のスペース */
-            flex-grow: 1; /* Allow it to take available space */
-            position: relative; /* For z-index to work */
-            z-index: 1; /* Keep content above the stripe if any overlap */
+            gap: 8px;
+            flex-grow: 1;
+            position: relative;
+            z-index: 1;
         }
 
         .name-and-buttons .edit-input {
-            flex-grow: 1; /* 入力フィールドがスペースを埋めるように */
+            flex-grow: 1;
             padding: 4px 8px;
             border: 1px solid #ccc;
             border-radius: 4px;
@@ -170,7 +177,7 @@
         .character-item .edit-button {
             background: none;
             border: none;
-            color: #4285F4; /* Google Blue */
+            color: #1e88e5; /* Match new primary color */
             cursor: pointer;
             font-size: 1rem;
             padding: 4px;
@@ -179,24 +186,24 @@
 
         .player-item .edit-button:hover,
         .character-item .edit-button:hover {
-            color: #3367D6;
+            color: #1565c0; /* Darker blue on hover */
         }
 
         .player-item button.delete-button,
         .character-item button.delete-button {
-            background-color: #d32f2f; /* Material Red */
+            background-color: #e53935; /* Material Red 600 */
             color: white;
             border: none;
-            border-radius: 6px; /* 少し大きめに */
-            padding: 8px 12px; /* パディングを増やす */
+            border-radius: 6px;
+            padding: 8px 12px;
             cursor: pointer;
             font-size: 0.9rem;
             transition: background-color 0.3s ease, transform 0.2s ease;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: flex; /* アイコンを中央揃え */
-            align-items: center; /* アイコンを中央揃え */
-            justify-content: center; /* アイコンを中央揃え */
-            margin-left: 8px; /* 編集ボタンとの間隔 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 8px;
         }
         .player-item button.delete-button i,
         .character-item button.delete-button i {
@@ -204,19 +211,20 @@
         }
         .player-item button.delete-button:hover,
         .character-item button.delete-button:hover {
-            background-color: #b71c1c;
+            background-color: #c62828; /* Darker Red */
             transform: translateY(-1px);
         }
 
-        /* New style for the color stripe */
+        /* Color stripe on the left edge */
         .color-stripe {
             position: absolute;
             top: 0;
             left: 0;
             bottom: 0;
-            width: 8px; /* Width of the color stripe */
-            border-top-left-radius: inherit; /* Match parent's border radius */
-            border-bottom-left-radius: inherit; /* Match parent's border radius */
+            width: 8px;
+            border-top-left-radius: inherit;
+            border-bottom-left-radius: inherit;
+            pointer-events: none; /* Ensure it doesn't interfere with drag/drop */
         }
 
         .preferences-section {
@@ -224,46 +232,44 @@
             padding: 20px;
             background-color: #ffffff;
             border-radius: 12px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
             border: 1px solid #e9e9e9;
         }
         .player-preferences {
             margin-bottom: 15px;
-            padding: 18px; /* パディングを増やす */
-            background-color: #f5f5f5; /* Light grey */
+            padding: 18px;
+            background-color: #f5f5f5;
             border-radius: 10px;
             border: 1px solid #e0e0e0;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .player-preferences h3 {
-            font-size: 1.35rem; /* 少し大きく */
+            font-size: 1.35rem;
             font-weight: 600;
             color: #333;
             margin-bottom: 12px;
         }
-        /* Player List styles - keep vertical */
         #playerList {
             display: flex;
-            flex-direction: column; /* Keep players list vertical */
-            gap: 10px; /* 間隔を少し広げる */
-            min-height: 60px; /* 高さを確保 */
-            border: 1px dashed #bdbdbd; /* 枠線を明確に */
+            flex-direction: column;
+            gap: 10px;
+            min-height: 60px;
+            border: 1px dashed #bdbdbd;
             padding: 12px;
             border-radius: 8px;
             background-color: #fdfdfd;
         }
         #playerList.dragging-over {
             border-color: #4CAF50;
-            background-color: #e8f5e9; /* Light green for drag-over */
+            background-color: #e8f5e9;
         }
 
-        /* Preference List styles - make horizontal */
         .preference-list {
             display: flex;
-            flex-direction: row; /* Changed to row for horizontal display */
+            flex-direction: row;
             flex-wrap: wrap;
             gap: 8px;
-            min-height: 60px; /* 高さを確保 */
+            min-height: 60px;
             border: 1px dashed #bdbdbd;
             padding: 12px;
             border-radius: 8px;
@@ -275,41 +281,41 @@
         }
 
         .preference-item {
-            padding: 10px 14px; /* パディングを調整 */
+            padding: 10px 14px;
             border-radius: 6px;
             cursor: grab;
             transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            background-color: #ffffff; /* Explicitly set white background for content */
-            color: #333; /* Default text color for main content */
-            position: relative; /* For absolute positioning of stripe */
-            overflow: hidden; /* Ensure stripe borderRadius respects parent */
-            padding-left: 22px; /* Adjust padding for the stripe (smaller for preference-item) */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            background-color: #ffffff;
+            color: #333;
+            position: relative;
+            overflow: hidden;
+            padding-left: 22px; /* Adjusted padding for the smaller stripe */
         }
         .preference-item:hover {
-            /* background-color will be set by JS dynamically */
+            background-color: #f5f5f5; /* Light grey on hover */
             transform: translateY(-1px);
-            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
         }
         .preference-item .color-stripe {
             width: 6px; /* Slightly smaller stripe for preference items */
-            border-top-left-radius: inherit; /* Match parent's border radius */
-            border-bottom-left-radius: inherit; /* Match parent's border radius */
+            border-top-left-radius: inherit;
+            border-bottom-left-radius: inherit;
         }
 
         .results-section {
             padding: 20px;
-            background-color: #e3f2fd; /* Light blue for results */
+            background-color: #e3f2fd;
             border-radius: 12px;
             border: 1px solid #bbdefb;
             min-height: 100px;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); /* Consistent shadow */
         }
         .results-section h2 {
-            color: #1976D2; /* Darker blue for results heading */
+            color: #1976D2;
             font-size: 1.6rem;
             margin-bottom: 10px;
         }
@@ -318,7 +324,7 @@
             color: #333;
             margin-bottom: 5px;
             padding: 4px 0;
-            border-bottom: 1px dotted #e0e0e0; /* ドットの境界線 */
+            border-bottom: 1px dotted #e0e0e0;
         }
         .result-item:last-child {
             border-bottom: none;
@@ -329,16 +335,16 @@
             left: 50%;
             transform: translate(-50%, -50%);
             background-color: #fff;
-            padding: 30px; /* パディングを増やす */
-            border-radius: 12px; /* 丸みを強調 */
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25); /* より明確な影 */
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22); /* Stronger message box shadow */
             z-index: 1000;
             border: 1px solid #cccccc;
             display: none;
         }
         .message-box p {
-            margin-bottom: 25px; /* 余白を増やす */
-            font-size: 1.2rem; /* 少し大きく */
+            margin-bottom: 25px;
+            font-size: 1.2rem;
             color: #333;
             text-align: center;
             line-height: 1.5;
@@ -359,19 +365,17 @@
         .message-box button:hover {
             background-color: #45a049;
         }
-        /* 折り畳みコンテンツのスタイル */
         .collapsible-content {
-            max-height: 1000px; /* コンテンツを表示するための十分な高さ */
+            max-height: 1000px;
             overflow: hidden;
             transition: max-height 0.3s ease-out;
-            padding-top: 15px; /* 折り畳み時にコンテンツが消える際のトップパディングを考慮 */
+            padding-top: 15px;
         }
         .collapsible-content.collapsed {
             max-height: 0;
             padding-top: 0;
-            margin-bottom: 0; /* 折り畳み時に余分なスペースをなくす */
+            margin-bottom: 0;
         }
-        /* 折り畳みアイコンのスタイル */
         .toggle-icon {
             transform: rotate(0deg);
             transition: transform 0.3s ease;
@@ -379,11 +383,10 @@
             margin-left: 10px;
         }
         .toggle-icon.collapsed {
-            transform: rotate(-90deg); /* 閉じた時にアイコンを回転 */
+            transform: rotate(-90deg);
         }
-        /* 新しいリセットボタンのスタイル */
         .reset-button {
-            background-color: #f44336; /* Red color for reset */
+            background-color: #f44336;
             color: white;
             padding: 10px 14px;
             border: none;
@@ -396,10 +399,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-left: 10px; /* Adjust margin as needed */
+            margin-left: 10px;
         }
         .reset-button:hover {
-            background-color: #d32f2f; /* Darker red */
+            background-color: #d32f2f;
             transform: translateY(-2px);
             box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
         }
@@ -410,7 +413,7 @@
         .section-header-actions {
             display: flex;
             align-items: center;
-            gap: 10px; /* スペースを調整 */
+            gap: 10px;
         }
     </style>
 </head>
@@ -877,8 +880,6 @@
                 characterItem.className = 'character-item';
                 characterItem.draggable = true; // キャラクターアイテムをドラッグ可能にする
                 characterItem.dataset.character = charObj.name; // キャラクター名をデータ属性に保存
-                // characterItem.style.backgroundColor = charObj.bgColor; // Removed
-                // characterItem.style.color = charObj.textColor; // Removed
                 characterItem.ondragstart = handleCharListItemDragStart; // ドラッグ開始イベントハンドラ
                 characterItem.ondragend = handleCharListItemDragEnd; // ドラッグ終了イベントハンドラ
 
