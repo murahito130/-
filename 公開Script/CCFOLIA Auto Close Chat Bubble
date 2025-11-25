@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         CCFOLIA Auto Close Chat Bubble
 // @namespace    https://github.com/
-// @version      1.0
-// @description  ココフォリアのメッセージ吹き出しを、表示完了から5秒後に自動的に閉じます（編集画面回避・低負荷版）
+// @version      1.1
+// @description  ココフォリアのメッセージ吹き出しのみを、表示完了から5秒後に自動的に閉じます（UIパネル回避・低負荷版）
 // @author       User
 // @match        https://ccfolia.com/rooms/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=ccfolia.com
@@ -14,46 +14,63 @@
     'use strict';
 
     // =================================================================
-    // 設定エリア (数値を変更して調整できます)
+    // 設定エリア
     // =================================================================
     const CONFIG = {
         // メッセージの表示完了後、閉じるまでに待機する時間 (ミリ秒)
         // 5000 = 5秒
         WAIT_TIME: 5000,
 
-        // 文字送りが止まったとみなすバッファ時間 (ミリ秒)
-        // 通常は変更不要です
+        // 文字送りが止まったとみなすバッファ時間
         STABILITY_TIME: 500
     };
 
     // =================================================================
-    // 内部処理 (ここから下は変更不要)
+    // 内部処理
     // =================================================================
     const TOTAL_DELAY = CONFIG.WAIT_TIME + CONFIG.STABILITY_TIME;
-    const managedButtons = new WeakSet(); // 二重登録防止用
+    const managedButtons = new WeakSet();
 
     /**
-     * そのボタンが「無視すべきボタン（編集画面や設定画面）」か判定する
+     * そのボタンが「無視すべきボタン（編集画面、シーン一覧などのUI）」か判定する
      * @param {HTMLElement} btn - 判定対象のボタン
      */
     function isIgnoredButton(btn) {
         // 1. ダイアログ (モーダルウィンドウ) 内のボタンは無視
-        // (キャラクター編集、ルーム設定などは role="dialog" や .MuiDialog-root 内にある)
         if (btn.closest('[role="dialog"]') || btn.closest('.MuiDialog-root')) {
             return true;
         }
 
-        // 2. ドロワー (サイドバー) 内のボタンは無視
-        // (チャットログ一覧や設定サイドバーなどが該当)
+        // 2. ドロワー (右サイドバーのチャットログなど) 内のボタンは無視
         if (btn.closest('.MuiDrawer-root')) {
             return true;
         }
 
-        // 3. 入力フォームを含むコンテナ内のボタンは念のため無視
-        // (吹き出しに入力欄はないため、これがあれば編集画面の可能性が高い)
+        // --- 判定用コンテナの取得 ---
+        // 吹き出しやパネルの構成要素（白い枠部分）を取得
         const container = btn.closest('div[class*="MuiPaper"]') || btn.parentElement?.parentElement;
-        if (container && container.querySelector('input, textarea, select')) {
-            return true;
+
+        if (container) {
+            // 3. 入力フォームを含むコンテナは無視 (編集画面など)
+            if (container.querySelector('input, textarea, select')) {
+                return true;
+            }
+
+            // 4. 【重要】ヘッダーバーを持つコンテナは無視
+            // (シーン一覧、スクリーンパネル一覧などは上部に header や MuiAppBar を持つ)
+            if (container.querySelector('header') || container.querySelector('.MuiAppBar-root')) {
+                return true;
+            }
+
+            // 5. 【重要】リスト構造を持つコンテナは無視
+            // (シーン一覧などは ul/ol タグで一覧表示されている)
+            if (container.querySelector('ul, ol')) {
+                return true;
+            }
+
+            // 6. システム通知 (Snackbar) で "OK" ボタン等を持つものは、
+            //    閉じるボタン以外のアクションボタンが含まれるため無視したい場合は以下のコメントアウトを外す
+            // if (container.querySelectorAll('button').length > 1) { return true; }
         }
 
         return false;
@@ -64,10 +81,9 @@
      * @param {HTMLElement} closeBtn - 閉じるボタン要素
      */
     function setupAutoClose(closeBtn) {
-        // 既に管理済みのボタンなら何もしない
         if (managedButtons.has(closeBtn)) return;
 
-        // 除外対象のボタン（編集画面など）なら管理済みマークだけ付けて終了
+        // 除外判定
         if (isIgnoredButton(closeBtn)) {
             managedButtons.add(closeBtn);
             return;
@@ -75,41 +91,35 @@
 
         managedButtons.add(closeBtn);
 
-        // 吹き出しのコンテナ（テキストが含まれる親要素）を特定
         const container = closeBtn.closest('div[class*="MuiPaper"]') ||
                           closeBtn.parentElement?.parentElement ||
                           document.body;
 
         let closeTimer = null;
 
-        // 実際に閉じる処理
         const executeClose = () => {
-            // 実行時にまだボタンが画面上に存在していればクリック
             if (closeBtn.isConnected) {
+                // コンソールログで何が閉じられたか確認したい場合は以下を有効化
+                // console.log('Auto closing bubble:', container);
                 closeBtn.click();
             }
         };
 
-        // タイマーをリセットする関数（デバウンス処理）
-        // テキストが変化（タイプライター演出など）するたびに呼ばれ、閉じる予約を先延ばしにする
         const resetTimer = () => {
             if (closeTimer) clearTimeout(closeTimer);
             closeTimer = setTimeout(executeClose, TOTAL_DELAY);
         };
 
-        // テキスト変更監視用のオブザーバー
         const textObserver = new MutationObserver(() => {
             resetTimer();
         });
 
-        // コンテナ内の変更監視を開始（文字データの変更や子要素の追加を検知）
         textObserver.observe(container, {
             childList: true,
             subtree: true,
             characterData: true
         });
 
-        // 初回実行
         resetTimer();
     }
 
@@ -117,15 +127,20 @@
      * ノードリスト内から対象の閉じるボタンを探し出す
      */
     function scanNodesForButtons(nodes) {
+        // 閉じるボタンのSVGアイコン、または aria-label="close" を持つボタンを探す
         const selectors = 'button svg[data-testid="CloseIcon"], button[aria-label="close"]';
 
         nodes.forEach(node => {
-            // 要素ノード以外は無視
             if (node.nodeType !== Node.ELEMENT_NODE) return;
 
-            // 追加されたノード自体がボタンである可能性と、子孫に含まれる可能性の両方を確認
+            // 追加されたノード自体がボタン関連かチェック
             if (node.matches && (node.matches(selectors) || node.querySelector(selectors))) {
-                const icons = node.querySelectorAll(selectors);
+                const icons = node.querySelectorAll ? node.querySelectorAll(selectors) : [];
+                // node自体がsvgの場合などの対応
+                if (node.matches(selectors)) {
+                     const btn = node.closest('button');
+                     if (btn) setupAutoClose(btn);
+                }
                 icons.forEach(icon => {
                     const btn = icon.closest('button');
                     if (btn) setupAutoClose(btn);
@@ -133,7 +148,7 @@
                 return;
             }
 
-            // 子孫要素のみ検索
+            // 子孫要素も検索
             const foundIcons = node.querySelectorAll(selectors);
             foundIcons.forEach(icon => {
                 const btn = icon.closest('button');
@@ -142,9 +157,9 @@
         });
     }
 
-    // ---------------------------------------------------------
-    // 画面全体の監視を開始
-    // ---------------------------------------------------------
+    // =================================================================
+    // 監視の開始
+    // =================================================================
     const mainObserver = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             if (mutation.addedNodes.length > 0) {
@@ -158,7 +173,7 @@
         subtree: true
     });
 
-    // スクリプト読み込み時に既に表示されている吹き出しにも適用
+    // 初期ロード時に既に表示されている吹き出しにも適用
     scanNodesForButtons([document.body]);
 
 })();
