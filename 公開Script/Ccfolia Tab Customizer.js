@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Ccfolia Tab Customizer
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
-// @description  ココフォリアのチャットタブを3段まで折り返し表示し、選択中のタブに赤いラインを表示します。レイアウト崩れを徹底的に防止した安定版です。
+// @version      1.1.0
+// @description  ココフォリアのチャットタブを3段まで折り返し表示し、選択中のタブに赤いラインを表示します。
 // @author       むらひと
 // @license      MIT
 // @match        https://ccfolia.com/rooms/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=ccfolia.com
+// @run-at       document-start
 // @grant        GM_addStyle
 // ==/UserScript==
 
@@ -20,14 +21,16 @@
      */
     const CONFIG = {
         // タブ1行あたりの高さ(px)
-        // ※ ここを変更すると全ての段の高さが追従します
         TAB_HEIGHT: 36,
 
         // 表示する最大行数
         MAX_ROWS: 3,
 
         // 赤いラインの太さ(px)
-        LINE_WIDTH: 3
+        LINE_WIDTH: 2,
+
+        // ラインの色
+        LINE_COLOR: '#ff0000'
     };
 
     // スクロールコンテナの最大高さ計算 (行数 * 高さ + 微調整用の余裕)
@@ -38,18 +41,16 @@
      * Styles
      * -------------------------------------------------------------------------
      */
+    // :is() を使用してセレクタを簡略化
+    const containerSelector = ':is(.MuiDrawer-root, .MuiPaper-root)';
+
     const styles = `
         /* ==========================================================================
            1. Container Reset (コンテナの初期化)
-           MUIデフォルトの min-height や padding を無効化し、
-           1段目が不自然に広がる現象を防ぎます。
            ========================================================================== */
-        [class*="MuiDrawer-root"] [class*="MuiTabs-root"],
-        [class*="MuiPaper-root"] [class*="MuiTabs-root"],
-        [class*="MuiDrawer-root"] [class*="MuiTabs-scroller"],
-        [class*="MuiPaper-root"] [class*="MuiTabs-scroller"],
-        [class*="MuiDrawer-root"] [class*="MuiTabs-flexContainer"],
-        [class*="MuiPaper-root"] [class*="MuiTabs-flexContainer"] {
+        ${containerSelector} .MuiTabs-root,
+        ${containerSelector} .MuiTabs-scroller,
+        ${containerSelector} .MuiTabs-flexContainer {
             min-height: 0 !important;
             height: auto !important;
             padding: 0 !important;
@@ -59,10 +60,8 @@
 
         /* ==========================================================================
            2. Flex Layout (折り返し設定)
-           タブを左上詰めで折り返し配置します。
            ========================================================================== */
-        [class*="MuiDrawer-root"] [class*="MuiTabs-flexContainer"],
-        [class*="MuiPaper-root"] [class*="MuiTabs-flexContainer"] {
+        ${containerSelector} .MuiTabs-flexContainer {
             display: flex !important;
             flex-wrap: wrap !important;
             align-content: flex-start !important;
@@ -73,10 +72,8 @@
 
         /* ==========================================================================
            3. Scroll Control (スクロール設定)
-           設定した行数を超えた場合のみ縦スクロールバーを表示します。
            ========================================================================== */
-        [class*="MuiDrawer-root"] [class*="MuiTabs-scroller"],
-        [class*="MuiPaper-root"] [class*="MuiTabs-scroller"] {
+        ${containerSelector} .MuiTabs-scroller {
             display: block !important;
             overflow-y: auto !important;
             overflow-x: hidden !important;
@@ -85,10 +82,8 @@
 
         /* ==========================================================================
            4. Tab Item Styling (タブのスタイル)
-           border等は使用せず、サイズを厳密に固定します。
            ========================================================================== */
-        [class*="MuiDrawer-root"] [class*="MuiTab-root"],
-        [class*="MuiPaper-root"] [class*="MuiTab-root"] {
+        ${containerSelector} .MuiTab-root {
             /* 高さ固定 */
             height: ${CONFIG.TAB_HEIGHT}px !important;
             min-height: ${CONFIG.TAB_HEIGHT}px !important;
@@ -100,11 +95,9 @@
             min-width: auto !important;
             box-sizing: border-box !important;
 
-            /* 余白設定 (上下0, 左右8px) */
+            /* 余白設定 */
             padding: 0 8px !important;
             margin: 0 !important;
-
-            /* ボーダーリセット (高さズレ防止のためborderは使わない) */
             border: none !important;
 
             /* テキスト配置 */
@@ -112,14 +105,14 @@
             align-items: center !important;
             justify-content: center !important;
 
-            /* アニメーション無効化 */
+            /* アニメーション無効化・透過 */
             transition: none !important;
             opacity: 0.7 !important;
         }
 
         /* タブ内テキストラッパーのズレ防止 */
-        [class*="MuiTab-root"] > [class*="MuiTab-wrapper"],
-        [class*="MuiTab-root"] > span {
+        .MuiTab-root > .MuiTab-wrapper,
+        .MuiTab-root > span {
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
@@ -129,23 +122,17 @@
         /* ==========================================================================
            5. Cleanup (不要要素の非表示)
            ========================================================================== */
-        /* デフォルトの青い下線 */
-        [class*="MuiTabs-indicator"],
-        /* 横スクロールボタン */
-        [class*="MuiTabScrollButton-root"] {
+        .MuiTabs-indicator,
+        .MuiTabScrollButton-root {
             display: none !important;
         }
 
         /* ==========================================================================
            6. Selected State (選択状態の強調)
-           box-shadow(内側の影)を使用して赤いラインを描画します。
-           borderを使わないため、レイアウトや高さに一切影響を与えません。
+           borderを使わずbox-shadowで高さを維持したまま線を引く
            ========================================================================== */
-        [class*="MuiDrawer-root"] [class*="MuiTab-root"].Mui-selected,
-        [class*="MuiPaper-root"] [class*="MuiTab-root"].Mui-selected {
-            /* 下方向に赤い内影をつける */
-            box-shadow: inset 0 -${CONFIG.LINE_WIDTH}px 0 0 #ff0000 !important;
-
+        ${containerSelector} .MuiTab-root.Mui-selected {
+            box-shadow: inset 0 -${CONFIG.LINE_WIDTH}px 0 0 ${CONFIG.LINE_COLOR} !important;
             font-weight: bold !important;
             opacity: 1 !important;
             z-index: 10 !important;
@@ -155,5 +142,5 @@
     // スタイルを適用
     GM_addStyle(styles);
 
-    console.log("Ccfolia Tab Customizer v1.0.0: Loaded successfully.");
+    console.log("Ccfolia Tab Customizer: Loaded successfully.");
 })();
